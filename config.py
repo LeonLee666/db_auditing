@@ -17,7 +17,7 @@ INPUT_SIZE = 1
 # 隐藏层神经元个数
 HIDDEN_SIZE = 32
 # 隐藏层层数
-LSTM_LAYER = 5
+LSTM_LAYER = 3
 # 输出神经元个数
 OUTPUT_CLASSES = 2
 DROPOUT = 0.0

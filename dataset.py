@@ -4,17 +4,27 @@ from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import MinMaxScaler
 from torch.utils.data import Dataset
 import config
+from tqdm import tqdm
+
+def count_within_threshold(df, index, threshold=0.05):
+    # 计算前后各10行的范围
+    start = max(0, index - 20)
+    end = min(len(df), index + 21)
+    current_value = df.at[index, 'value2']
+    # 计算符合条件的个数
+    count = ((df['value2'][start:end] - current_value).abs() <= threshold).sum()
+    return count
 
 def ReadFileAsDataFrame(file):
     df = pd.read_csv(file, usecols=['value2'], index_col=False)
-    # df['timestamp'] = pd.to_numeric(df['timestamp'], errors='coerce')
-    # df['nsTime'] = pd.to_numeric(df['nsTime'], errors='coerce')
-    # df['value1'] = pd.to_numeric(df['value1'], errors='coerce')
     df['value2'] = pd.to_numeric(df['value2'], errors='coerce')
     scaler = MinMaxScaler()
     df[['value2']] = scaler.fit_transform(df[['value2']])
+    tqdm.pandas()
+    print(f"preprocessing data for {file}")
+    df['cnt'] = df.index.to_series().progress_apply(lambda idx: count_within_threshold(df=df, index=idx, threshold=0.05))
+    df = df.drop(columns=['value2'])
     return df
-
 
 # get data from csv file as a list, in which every item is a tuple(nparray[][],nparray[])
 def PrepareData():
