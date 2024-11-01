@@ -1,10 +1,11 @@
 SPIDER_FILE = 'spider_part.csv'
 NORMAL_FILE = 'normal_part.csv'
 # 数据集参数
+
 # 爬虫要本数量
-POSITIVE_SIZE = 800000
+POSITIVE_SIZE = 16000
 # 正常样本数量
-NEGATIVE_SIZE = 800000
+NEGATIVE_SIZE = 16000
 # 单个时序样本的长度，也就是一个时序样本包含多少条sql
 SEQ_LENGTH = 500
 
@@ -20,9 +21,9 @@ HIDDEN_SIZE = 32
 LSTM_LAYER = 3
 # 输出神经元个数
 OUTPUT_CLASSES = 2
-DROPOUT = 0.0
+DROPOUT = 0.2
 
 # 训练参数
 TRAINING_BATCH_SIZE = 32
-N_EPOCH = 10
-LEARNING_RATE = 0.001
+N_EPOCH = 5
+LEARNING_RATE = 0.0144

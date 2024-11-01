@@ -14,13 +14,14 @@ criterion = nn.CrossEntropyLoss()
 dropout = nn.Dropout(config.DROPOUT)
 acc = Accuracy(task='binary')
 f1_score = F1Score(num_classes=config.OUTPUT_CLASSES, task='binary')
-train_set, test_set = PrepareData()
-
 
 class MyLSTM(pl.LightningModule):
-    def __init__(self, basic=True):
+    def __init__(self, batch_size, learning_rate, basic=True):
         super(MyLSTM, self).__init__()
         self.basic = basic
+        self.learning_rate = learning_rate
+        self.batch_size = batch_size
+        self.train_set, self.val_set, self.test_set = PrepareData()
         if not self.basic:
             # 卷积层
             self.conv1 = nn.Conv1d(in_channels=config.INPUT_SIZE, out_channels=config.CONV_OUT_CHANNELS,
@@ -48,8 +49,8 @@ class MyLSTM(pl.LightningModule):
             x = self.pool(x)  # 池化层
             x = x.permute(0, 2, 1)  # 转回为 [batch size, seq length, feature size] 以适应 LSTM
         self.lstm.flatten_parameters()
-        h_0 = torch.zeros(config.LSTM_LAYER, x.size(0), config.HIDDEN_SIZE).to(x.device)
-        c_0 = torch.zeros(config.LSTM_LAYER, x.size(0), config.HIDDEN_SIZE).to(x.device)
+        h_0 = torch.zeros(config.LSTM_LAYER, x.size(0), config.HIDDEN_SIZE).to(x.device).requires_grad_()
+        c_0 = torch.zeros(config.LSTM_LAYER, x.size(0), config.HIDDEN_SIZE).to(x.device).requires_grad_()
         out, _ = self.lstm(x, (h_0, c_0))
         out = out[:, -1, :]  # get the last time step output, the shape is [batchsize, hidden size]
         out = self.dense1(out)
@@ -64,43 +65,51 @@ class MyLSTM(pl.LightningModule):
             loss = criterion(out, labels)
         return loss, out
 
-    def training_step(self, batch, batch_idx):
+    def __common__calc__(self, batch, batch_idx):
         features, labels = batch
         loss, outputs = self(features, labels)
         predictions = torch.argmax(outputs, dim=1)
-        step_acc = acc(predictions, labels)
-        step_f1 = f1_score(predictions, labels)
-        self.log("fit loss", loss, on_step=True, prog_bar=True, logger=True)
-        self.log("fit accuracy", step_acc, on_step=True, prog_bar=True, logger=True)
-        self.log("fit f1 score", step_f1, on_step=True, prog_bar=True, logger=True)
+        device = features.device
+        acc_device = acc.to(device)
+        f1_score2_device = f1_score.to(device)
+        step_acc = acc_device(predictions, labels)
+        step_f1 = f1_score2_device(predictions, labels)
+        return loss, step_acc, step_f1
+
+    def training_step(self, batch, batch_idx):
+        loss, step_acc, step_f1 = self.__common__calc__(batch, batch_idx)
+        self.log("fit loss", loss, on_step=True, prog_bar=True, logger=True, sync_dist=True)
+        self.log("fit accuracy", step_acc, on_step=True, prog_bar=True, logger=True, sync_dist=True)
+        self.log("fit f1 score", step_f1, on_step=True, prog_bar=True, logger=True, sync_dist=True)
         return {"loss": loss, "accuracy": step_acc, "f1": step_f1}
 
     def validation_step(self, batch, batch_idx):
-        features, labels = batch
-        loss, outputs = self(features, labels)
-        predictions = torch.argmax(outputs, dim=1)
-        step_acc = acc(predictions, labels)
-        step_f1 = f1_score(predictions, labels)
-        self.log("validation loss", loss, on_step=True, prog_bar=True, logger=True)
-        self.log("validation accuracy", step_acc, on_step=True, prog_bar=True, logger=True)
-        self.log("validation f1 score", step_f1, on_step=True, prog_bar=True, logger=True)
+        loss, step_acc, step_f1 = self.__common__calc__(batch, batch_idx)
+        self.log("validation loss", loss, on_step=True, prog_bar=True, logger=True, sync_dist=True)
+        self.log("validation accuracy", step_acc, on_step=True, prog_bar=True, logger=True, sync_dist=True)
+        self.log("validation f1 score", step_f1, on_step=True, prog_bar=True, logger=True, sync_dist=True)
         return {"loss": loss, "accuracy": step_acc, "f1": step_f1}
 
     def test_step(self, batch, batch_idx):
-        features, labels = batch
-        loss, outputs = self(features, labels)
-        predictions = torch.argmax(outputs, dim=1)
-        step_acc = acc(predictions, labels)
-        step_f1 = f1_score(predictions, labels)
-        self.log("test loss", loss, on_step=True, prog_bar=True, logger=True)
-        self.log("test accuracy", step_acc, on_step=True, prog_bar=True, logger=True)
-        self.log("test f1 score", step_f1, on_step=True, prog_bar=True, logger=True)
+        loss, step_acc, step_f1 = self.__common__calc__(batch, batch_idx)
+        self.log("test loss", loss, on_step=True, prog_bar=True, logger=True, sync_dist=True)
+        self.log("test accuracy", step_acc, on_step=True, prog_bar=True, logger=True, sync_dist=True)
+        self.log("test f1 score", step_f1, on_step=True, prog_bar=True, logger=True, sync_dist=True)
         return {"loss": loss, "accuracy": step_acc, "f1": step_f1}
 
     def train_dataloader(self):
         return DataLoader(
-            dataset=DataWrapper(train_set),
-            batch_size=config.TRAINING_BATCH_SIZE,
+            dataset=DataWrapper(self.train_set),
+            batch_size=self.batch_size,
+            shuffle=True,
+            persistent_workers=True,
+            num_workers=cpu_count()
+        )
+
+    def val_dataloader(self):
+        return DataLoader(
+            dataset=DataWrapper(self.val_set),
+            batch_size=self.batch_size,
             shuffle=True,
             persistent_workers=True,
             num_workers=cpu_count()
@@ -108,12 +117,12 @@ class MyLSTM(pl.LightningModule):
 
     def test_dataloader(self):
         return DataLoader(
-            dataset=DataWrapper(test_set),
-            batch_size=config.TRAINING_BATCH_SIZE,
-            shuffle=False,
+            dataset=DataWrapper(self.test_set),
+            batch_size=self.batch_size,
+            shuffle=True,
             persistent_workers=True,
             num_workers=cpu_count()
         )
 
     def configure_optimizers(self):
-        return optim.AdamW(self.parameters(), lr=config.LEARNING_RATE)
+        return optim.AdamW(self.parameters(), lr=self.learning_rate)
