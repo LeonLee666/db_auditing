@@ -1,37 +1,21 @@
 import pandas as pd
 import torch
 from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import MinMaxScaler
 from torch.utils.data import Dataset
 import config
-from tqdm import tqdm
-
-def neighbor_count(df, index, threshold=0.001):
-    # 计算前后各10行的范围
-    start = max(0, index - 20)
-    end = min(len(df), index + 21)
-    current_value = df.at[index, 'value2']
-    # 计算符合条件的个数
-    count = ((df['value2'][start:end] - current_value).abs() <= threshold).sum()
-    return count
+from feature_engineering import extract_features
 
 def ReadFileAsDataFrame(file):
-    df = pd.read_csv(file, usecols=['value2'], index_col=False)
-    df['value2'] = pd.to_numeric(df['value2'], errors='coerce')
-    scaler = MinMaxScaler()
-    df[['value2']] = scaler.fit_transform(df[['value2']])
-    tqdm.pandas()
-    print(f"preprocessing data for {file}")
-    df['cnt'] = df.index.to_series().progress_apply(lambda idx: neighbor_count(df=df, index=idx, threshold=0.001))
-    df['mean'] = df['cnt'].rolling(window=100).mean()
-    df = df.dropna(subset=['mean'])
-    df = df.drop(columns=['value2','cnt'])
+    df = pd.read_csv(file, usecols=['mean2'], index_col=False)
+    df = df.dropna(subset=['mean2'])
     return df
 
 # get data from csv file as a list, in which every item is a tuple(nparray[][],nparray[])
 def PrepareData():
-    positive_df = ReadFileAsDataFrame(config.SPIDER_FILE)
-    negative_df = ReadFileAsDataFrame(config.NORMAL_FILE)
+    if config.NEED_CALC_FEATURES == 1:
+        extract_features()
+    positive_df = ReadFileAsDataFrame(config.POSITIVE_FEATURES)
+    negative_df = ReadFileAsDataFrame(config.NEGATIVE_FEATURES)
     data_list = []
     cnt = 0
     for i in range(0, len(positive_df) - config.SEQ_LENGTH + 1, 10):

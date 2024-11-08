@@ -1,17 +1,17 @@
 import pytorch_lightning as pl
-from pytorch_lightning.loggers import TensorBoardLogger
+from pytorch_lightning.loggers import TensorBoardLogger, CSVLogger
 from lightning.pytorch.tuner import Tuner
 import config
 from mylstm import MyLSTM
 
 if __name__ == '__main__':
     pl.seed_everything(22)
-    logger = TensorBoardLogger(save_dir="metrics", name="lstm")
+    # logger = TensorBoardLogger(save_dir="metrics", name="lstm")
+    logger = CSVLogger("csv_log", name="lstm")
     model = MyLSTM(batch_size=config.TRAINING_BATCH_SIZE, learning_rate=config.LEARNING_RATE, basic=True)
     trainer = pl.Trainer(
         logger=logger,
-
-        devices=1,
+        devices=[1],
         accelerator='gpu',
         max_epochs=config.N_EPOCH,
         log_every_n_steps=1,
@@ -23,7 +23,7 @@ if __name__ == '__main__':
     trainer.fit(model)
     tester = pl.Trainer(
         logger=logger,
-        devices=1,
+        devices=[1],
         accelerator='gpu',
         enable_progress_bar=True
     )
