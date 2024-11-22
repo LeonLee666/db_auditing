@@ -1,2 +1,7 @@
 .idea
 *.csv
+/paperlist.py
+/kanyikan.py
+/paperlist.xlsx
+/trycode.py
+/xiaohongshu_sell.py

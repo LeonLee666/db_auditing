@@ -15,6 +15,7 @@ dropout = nn.Dropout(config.DROPOUT)
 acc = Accuracy(task='binary')
 f1_score = F1Score(num_classes=config.OUTPUT_CLASSES, task='binary')
 
+
 class MyLSTM(pl.LightningModule):
     def __init__(self, batch_size, learning_rate, basic=True):
         super(MyLSTM, self).__init__()
@@ -81,6 +82,8 @@ class MyLSTM(pl.LightningModule):
         self.log("fit loss", loss, on_step=True, prog_bar=True, logger=True, sync_dist=True)
         self.log("fit accuracy", step_acc, on_step=True, prog_bar=True, logger=True, sync_dist=True)
         self.log("fit f1 score", step_f1, on_step=True, prog_bar=True, logger=True, sync_dist=True)
+        if loss < 0.002:
+            self.trainer.should_stop = True  # 手动停止训练
         return {"loss": loss, "accuracy": step_acc, "f1": step_f1}
 
     def validation_step(self, batch, batch_idx):

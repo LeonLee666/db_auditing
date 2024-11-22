@@ -8,7 +8,7 @@ NEGATIVE_SIZE = 450000
 
 NEED_CALC_FEATURES = 1
 # 单个时序样本的长度，也就是一个时序样本包含多少条sql
-SEQ_LENGTH = 2000
+SEQ_LENGTH = 20000
 
 # 模型参数
 CONV_OUT_CHANNELS = 16
