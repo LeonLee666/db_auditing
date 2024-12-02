@@ -2,16 +2,13 @@ import pandas as pd
 import torch
 from sklearn.model_selection import train_test_split
 from torch.utils.data import Dataset
-
 import config
 from feature_engineering import extract_features
 
-
 def ReadFileAsDataFrame(file):
-    df = pd.read_csv(file, usecols=['mean2'], index_col=False)
-    df = df.dropna(subset=['mean2'])
+    df = pd.read_csv(file, usecols=['mean2', 'mean4', 'mean6'], index_col=False)
+    df = df.dropna(subset=['mean2', 'mean4', 'mean6'])
     return df
-
 
 # get data from csv file as a list, in which every item is a tuple(nparray[][],nparray[])
 def PrepareData():
@@ -39,7 +36,6 @@ def PrepareData():
     train_set, test_set = train_test_split(data_list, test_size=0.2)
     train_set, val_set = train_test_split(train_set, test_size=0.25)
     return train_set, val_set, test_set
-
 
 # define dataset, the input args for dataset type is a list of (sample,label)
 class DataWrapper(Dataset):

@@ -9,18 +9,20 @@ from tqdm import tqdm
 
 import config
 
-
 def read_file(file1, file2):
     cols = ['mean']
     df = pd.read_csv(file1, usecols=cols, index_col=False)
     df2 = pd.read_csv(file2, usecols=cols, index_col=False)
     return df, df2
 
-
 def my_plot(df, df2):
     plt.figure(figsize=(10, 5))
-    plt.plot(df.index, df['mean2'], label='positive', marker='o')
-    plt.plot(df2.index, df2['mean2'], label='negative', marker='x')
+    plt.plot(df.index, df['mean2'], label='mean2-positive', marker='o')
+    plt.plot(df2.index, df2['mean2'], label='mean2-negative', marker='x')
+    plt.plot(df.index, df['mean4'], label='mean4-positive', marker='v')
+    plt.plot(df2.index, df2['mean4'], label='mean4-negative', marker=',')
+    plt.plot(df.index, df['mean6'], label='mean6-positive', marker='*')
+    plt.plot(df2.index, df2['mean6'], label='mean6-negative', marker='.')
     plt.legend()
     plt.title('feature sequences')
     plt.xlabel('Index')
@@ -30,7 +32,6 @@ def my_plot(df, df2):
     plt.savefig('my_plot.png')
     # 关闭图形
     plt.close()
-
 
 def are_points_close(point1, point2, num_bins=1000):
     """
@@ -51,7 +52,6 @@ def are_points_close(point1, point2, num_bins=1000):
             return False
     return True
 
-
 def neighbor_count(df, index, threshold=0.001):
     start = max(0, index - 200)
     end = min(len(df), index)
@@ -68,21 +68,42 @@ def neighbor_count(df, index, threshold=0.001):
                 count += 1
     return count
 
+hashmap200 = defaultdict(int)
+hashmap400 = defaultdict(int)
+hashmap800 = defaultdict(int)
 
-hashmap = defaultdict(int)
-
-
-def nn_cnt(df, index):
+def nn_cnt200(df, index):
     num_bins = 1000
-    current_row = df.iloc[index].values
+    current_row = df.iloc[index][['value1', 'value2']].values
     bin_idx = (current_row * num_bins).astype(int)
-    hashmap[tuple(bin_idx)] += 1
+    hashmap200[tuple(bin_idx)] += 1
     if index >= 200:
-        outofdate_row = df.iloc[index - 200].values
+        outofdate_row = df.iloc[index - 200][['value1', 'value2']].values
         bin_idx2 = (outofdate_row * num_bins).astype(int)
-        hashmap[tuple(bin_idx2)] -= 1
-    return hashmap[tuple(bin_idx)]
+        hashmap200[tuple(bin_idx2)] -= 1
+    return hashmap200[tuple(bin_idx)]
 
+def nn_cnt400(df, index):
+    num_bins = 1000
+    current_row = df.iloc[index][['value1', 'value2']].values
+    bin_idx = (current_row * num_bins).astype(int)
+    hashmap400[tuple(bin_idx)] += 1
+    if index >= 400:
+        outofdate_row = df.iloc[index - 400][['value1', 'value2']].values
+        bin_idx2 = (outofdate_row * num_bins).astype(int)
+        hashmap400[tuple(bin_idx2)] -= 1
+    return hashmap400[tuple(bin_idx)]
+
+def nn_cnt800(df, index):
+    num_bins = 1000
+    current_row = df.iloc[index][['value1', 'value2']].values
+    bin_idx = (current_row * num_bins).astype(int)
+    hashmap800[tuple(bin_idx)] += 1
+    if index >= 800:
+        outofdate_row = df.iloc[index - 800][['value1', 'value2']].values
+        bin_idx2 = (outofdate_row * num_bins).astype(int)
+        hashmap800[tuple(bin_idx2)] -= 1
+    return hashmap800[tuple(bin_idx)]
 
 def preprocess(infile, outfile):
     scaler = MinMaxScaler()
@@ -91,16 +112,23 @@ def preprocess(infile, outfile):
     df['value2'] = pd.to_numeric(df['value2'], errors='coerce')
     df[['value1']] = scaler.fit_transform(df[['value1']])
     df[['value2']] = scaler.fit_transform(df[['value2']])
-    hashmap.clear()
-    # for 循环，并行遍历计算每一个点之前的200个点的相近点个数
-    df['cnt'] = Parallel(n_jobs=-1)(
-        delayed(nn_cnt)(df, idx) for idx in tqdm(df.index)
+    df['cnt200'] = Parallel(n_jobs=-1)(
+        delayed(nn_cnt200)(df, idx) for idx in tqdm(df.index)
     )
-    df['mean1'] = df['cnt'].rolling(window=200).mean()
+    df['mean1'] = df['cnt200'].rolling(window=200).mean()
     df['mean2'] = df['mean1'].rolling(window=200).mean()
+    df['cnt400'] = Parallel(n_jobs=-1)(
+        delayed(nn_cnt400)(df, idx) for idx in tqdm(df.index)
+    )
+    df['mean3'] = df['cnt400'].rolling(window=400).mean()
+    df['mean4'] = df['mean3'].rolling(window=400).mean()
+    df['cnt800'] = Parallel(n_jobs=-1)(
+        delayed(nn_cnt800)(df, idx) for idx in tqdm(df.index)
+    )
+    df['mean5'] = df['cnt800'].rolling(window=800).mean()
+    df['mean6'] = df['mean5'].rolling(window=800).mean()
     df.to_csv(outfile)
     return df
-
 
 def extract_features():
     df = preprocess(config.POSITIVE_FILE, config.POSITIVE_FEATURES)
