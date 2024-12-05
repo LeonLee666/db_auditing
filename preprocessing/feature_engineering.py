@@ -6,6 +6,8 @@ import pandas as pd
 from joblib import Parallel, delayed
 from sklearn.preprocessing import MinMaxScaler
 from tqdm import tqdm
+from sklearn.random_projection import SparseRandomProjection
+from sklearn.neighbors import NearestNeighbors
 
 import config
 
@@ -17,20 +19,20 @@ def read_file(file1, file2):
 
 def my_plot(df, df2):
     plt.figure(figsize=(10, 5))
-    window_sizes = [200, 400, 800]
-    markers = ['o', 'x', 'v', ',']
-    
-    for i, window_size in enumerate(window_sizes):
-        mean_col = f'mean{window_size}_2'
-        plt.plot(df.index, df[mean_col], label=f'mean{window_size}-positive', marker=markers[i])
-        plt.plot(df2.index, df2[mean_col], label=f'mean{window_size}-negative', marker=markers[i+1])
-    
+    plt.plot(df.index, df['mean2'], label='mean2-positive', marker='o')
+    plt.plot(df2.index, df2['mean2'], label='mean2-negative', marker='x')
+    plt.plot(df.index, df['mean4'], label='mean4-positive', marker='v')
+    plt.plot(df2.index, df2['mean4'], label='mean4-negative', marker=',')
+    plt.plot(df.index, df['mean6'], label='mean6-positive', marker='*')
+    plt.plot(df2.index, df2['mean6'], label='mean6-negative', marker='.')
     plt.legend()
-    plt.title('Feature Sequences')
+    plt.title('feature sequences')
     plt.xlabel('Index')
-    plt.ylabel('Feature Values')
+    plt.ylabel('feature values')
     plt.grid()
+    # 保存为 PNG 文件
     plt.savefig('my_plot.png')
+    # 关闭图形
     plt.close()
 
 def are_points_close(point1, point2, num_bins=1000):
@@ -75,26 +77,29 @@ hashmaps = {
     800: defaultdict(int)
 }
 
-def nn_cnt(df, index, window_size):
+def nn_cnt(df, index, window_size, n_neighbors=5):
     """
-    统一的近邻计数函数，替代原来的三个独立函数
+    使用局部敏感哈希（LSH）来近似查找近邻
     """
-    num_bins = 1000
-    current_row = df.iloc[index][['value1', 'value2']].values
-    bin_idx = (current_row * num_bins).astype(int)
-    hashmap = hashmaps[window_size]
-    hashmap[tuple(bin_idx)] += 1
+    start = max(0, index - window_size)
+    # 只选择BERT编码的列
+    bert_columns = [f'feature_{i}' for i in range(768)]
+    current_row = df.iloc[index][bert_columns].values.reshape(1, -1)
     
-    if index >= window_size:
-        outofdate_row = df.iloc[index - window_size][['value1', 'value2']].values
-        bin_idx2 = (outofdate_row * num_bins).astype(int)
-        hashmap[tuple(bin_idx2)] -= 1
+    # 使用 NearestNeighbors 查找近邻
+    if len(df.iloc[start:index]) == 0:
+        return 0
     
-    return hashmap[tuple(bin_idx)]
+    nbrs = NearestNeighbors(n_neighbors=n_neighbors, algorithm='ball_tree').fit(df.iloc[start:index][bert_columns].values)
+    distances, indices = nbrs.kneighbors(current_row)
+    
+    # 返回距离小于某个阈值的近邻个数
+    threshold = 0.1  # 可以根据实际数据分布调整这个阈值
+    return np.sum(distances <= threshold)
 
 def calculate_features(df, window_size):
     """
-    计算特定窗口大小的特征
+    计算特定窗口大小的特征，适用于高维数据
     """
     cnt_col = f'cnt{window_size}'
     mean1_col = f'mean{window_size}_1'
@@ -107,25 +112,3 @@ def calculate_features(df, window_size):
     df[mean2_col] = df[mean1_col].rolling(window=window_size).mean()
     
     return df
-
-def preprocess(infile, outfile):
-    scaler = MinMaxScaler()
-    df = pd.read_csv(infile, usecols=['value1', 'value2'], index_col=False)
-    
-    # 数据预处理
-    for col in ['value1', 'value2']:
-        df[col] = pd.to_numeric(df[col], errors='coerce')
-        df[[col]] = scaler.fit_transform(df[[col]])
-    
-    # 计算不同窗口大小的特征
-    window_sizes = [200, 400, 800]
-    for window_size in window_sizes:
-        df = calculate_features(df, window_size)
-    
-    df.to_csv(outfile)
-    return df
-
-def extract_features():
-    df = preprocess(config.POSITIVE_FILE, config.POSITIVE_FEATURES)
-    df2 = preprocess(config.NEGATIVE_FILE, config.NEGATIVE_FEATURES)
-    my_plot(df, df2)
