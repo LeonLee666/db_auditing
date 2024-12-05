@@ -5,3 +5,14 @@
 /paperlist.xlsx
 /trycode.py
 /xiaohongshu_sell.py
+__pycache__/config.cpython-312.pyc
+__pycache__/dataset.cpython-312.pyc
+__pycache__/feature_engineering.cpython-312.pyc
+__pycache__/mylstm.cpython-312.pyc
+bert-base-uncased/config.json
+bert-base-uncased/model.safetensors
+bert-base-uncased/special_tokens_map.json
+bert-base-uncased/tokenizer_config.json
+bert-base-uncased/vocab.txt
+metrics/lstm/version_0/events.out.tfevents.1731058976.leonlee.39872.0
+metrics/lstm/version_0/hparams.yaml

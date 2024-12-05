@@ -6,8 +6,9 @@ import config
 from feature_engineering import extract_features
 
 def ReadFileAsDataFrame(file):
-    df = pd.read_csv(file, usecols=['mean2', 'mean4', 'mean6'], index_col=False)
-    df = df.dropna(subset=['mean2', 'mean4', 'mean6'])
+    usecols = ['mean200_2', 'mean400_2', 'mean800_2']
+    df = pd.read_csv(file, usecols=usecols, index_col=False)
+    df = df.dropna(subset=usecols)
     return df
 
 # get data from csv file as a list, in which every item is a tuple(nparray[][],nparray[])
