@@ -1,8 +1,8 @@
 POSITIVE_FILE = 'spider-short.csv'
-POSITIVE_SIZE = 45000
+POSITIVE_SIZE = 4500
 
 NEGATIVE_FILE = 'normal-short.csv'
-NEGATIVE_SIZE = 45000
+NEGATIVE_SIZE = 4500
 
 # 单个时序样本的长度，也就是一个时序样本包含多少条sql
 SEQ_LENGTH = 20000

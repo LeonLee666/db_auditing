@@ -7,16 +7,9 @@ from tqdm import tqdm
 from sklearn.random_projection import SparseRandomProjection
 from sklearn.neighbors import NearestNeighbors
 
-def nn_cnt(df, index, window_size, n_neighbors=5):
+def nn_cnt(df, index, window_size, n_neighbors=5, threshold=0.3):
     """
-    使用 k-近邻计算平均距离
-    参数:
-    - df: DataFrame
-    - index: 当前处理的索引
-    - window_size: 窗口大小
-    - n_neighbors: 近邻数量
-    返回:
-    - float: k个最近邻居的平均距离
+    计算窗口内与当前样本距离大于阈值的样本数量
     """
     if index >= len(df):
         return 0
@@ -28,25 +21,23 @@ def nn_cnt(df, index, window_size, n_neighbors=5):
     start = max(0, index - window_size)
     window_data = df.iloc[start:index][bert_columns].values
     
-    # Check the number of samples within the window
     if len(window_data) < 1:
         return 0
         
-    # Adjust the number of neighbors
     actual_n_neighbors = min(n_neighbors, len(window_data))
     
     try:
-        # Use NearestNeighbors to find neighbors
+        # 移除并行处理
         nbrs = NearestNeighbors(
-            n_neighbors=actual_n_neighbors, 
-            algorithm='ball_tree',
-            metric='euclidean'
+            n_neighbors=actual_n_neighbors,
+            algorithm='kd_tree',
+            metric='cosine',
+            leaf_size=30,
+            n_jobs=40
         ).fit(window_data)
         
         distances, _ = nbrs.kneighbors(current_row)
-        
-        # 计算平均距离而不是统计阈值内的邻居数
-        return np.mean(distances)
+        return np.sum(distances[0] > threshold)
     except ValueError:
         return 0
 
@@ -58,12 +49,23 @@ def calculate_features(df, window_size):
     mean1_col = f'mean{window_size}_1'
     mean2_col = f'mean{window_size}_2'
     
-    df[cnt_col] = Parallel(n_jobs=48)(
-        delayed(nn_cnt)(df, idx, window_size) for idx in tqdm(range(len(df)))
-    )
-    df[mean1_col] = df[cnt_col].rolling(window=window_size).mean()
-    df[mean2_col] = df[mean1_col].rolling(window=window_size).mean()
-    return df
+    # 串行计算
+    cnt_values = [nn_cnt(df, idx, window_size) for idx in tqdm(range(len(df)))]
+    
+    # 计算滚动平均值
+    mean1_values = pd.Series(cnt_values).rolling(window=window_size).mean()
+    mean2_values = mean1_values.rolling(window=window_size).mean()
+    
+    # 使用pd.concat一次性添加所有列
+    new_features = pd.DataFrame({
+        cnt_col: cnt_values,
+        mean1_col: mean1_values,
+        mean2_col: mean2_values
+    })
+    
+    # 合并原始DataFrame和新特征
+    result = pd.concat([df, new_features], axis=1)
+    return result
 
 def find_reasonable_threshold(df, sample_size=1000):
     # Get BERT feature columns
