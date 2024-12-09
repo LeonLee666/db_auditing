@@ -1,10 +1,8 @@
-POSITIVE_FILE = 'spider.csv'
-POSITIVE_FEATURES = 'spider-nn.csv'
-POSITIVE_SIZE = 450000
+POSITIVE_FILE = 'spider-short.csv'
+POSITIVE_SIZE = 45000
 
-NEGATIVE_FILE = 'normal.csv'
-NEGATIVE_FEATURES = 'normal-nn.csv'
-NEGATIVE_SIZE = 450000
+NEGATIVE_FILE = 'normal-short.csv'
+NEGATIVE_SIZE = 45000
 
 # 单个时序样本的长度，也就是一个时序样本包含多少条sql
 SEQ_LENGTH = 20000
@@ -29,3 +27,6 @@ DROPOUT = 0.2
 TRAINING_BATCH_SIZE = 32
 N_EPOCH = 5
 LEARNING_RATE = 1e-4
+
+# 特征生成控制
+REGENERATE_FEATURES = False  # 设置为True时重新生成特征，False时从文件读取特征

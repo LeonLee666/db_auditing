@@ -1,25 +1,23 @@
 import time
-
 import torch
 import pandas as pd
 from transformers import BertTokenizer, BertModel
 from tqdm import tqdm
-import json
-
-# Load pre-trained BERT model and tokenizer
-model_name = './bert-base-uncased'
-tokenizer = BertTokenizer.from_pretrained(model_name)
-model = BertModel.from_pretrained(model_name)
-
-# Move model to GPU if available
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-model.to(device)
-
-# Set the model to evaluation mode
-model.eval()
 
 # Function to encode texts in batches using CUDA
 def encode_texts_in_batches(texts, batch_size=32):
+    # Load pre-trained BERT model and tokenizer
+    model_name = './bert-base-uncased'
+    tokenizer = BertTokenizer.from_pretrained(model_name)
+    model = BertModel.from_pretrained(model_name)
+
+    # Move model to GPU if available
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    model.to(device)
+
+    # Set the model to evaluation mode
+    model.eval()
+
     all_cls_vectors = []
     total_batches = (len(texts) + batch_size - 1) // batch_size
     with tqdm(total=total_batches, desc="编码进度") as pbar:

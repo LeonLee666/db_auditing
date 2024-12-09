@@ -53,8 +53,12 @@ def train_and_test(model: pl.LightningModule, use_gpu: bool):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="auditlog ai agent.")
     parser.add_argument('--cuda', action='store_true', help='是否使用GPU')
+    parser.add_argument('--fe', action='store_true', help='是否重新生成特征')
     args = parser.parse_args()
 
+    # 设置特征重生成标志
+    config.REGENERATE_FEATURES = args.fe
+    
     pl.seed_everything(22)
     
     model = MyLSTM(
