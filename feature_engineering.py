@@ -6,6 +6,7 @@ import pandas as pd
 from joblib import Parallel, delayed
 from sklearn.preprocessing import MinMaxScaler
 from tqdm import tqdm
+import ast
 
 import config
 
@@ -80,13 +81,15 @@ def nn_cnt(df, index, window_size):
     统一的近邻计数函数，替代原来的三个独立函数
     """
     num_bins = 1000
-    current_row = df.iloc[index][['value1', 'value2']].values
+    # 选择所有以 'value' 开头的列
+    value_columns = [col for col in df.columns if col.startswith('value_')]
+    current_row = df.iloc[index][value_columns].values
     bin_idx = (current_row * num_bins).astype(int)
     hashmap = hashmaps[window_size]
     hashmap[tuple(bin_idx)] += 1
     
     if index >= window_size:
-        outofdate_row = df.iloc[index - window_size][['value1', 'value2']].values
+        outofdate_row = df.iloc[index - window_size][value_columns].values
         bin_idx2 = (outofdate_row * num_bins).astype(int)
         hashmap[tuple(bin_idx2)] -= 1
     
@@ -100,6 +103,7 @@ def calculate_features(df, window_size):
     mean1_col = f'mean{window_size}_1'
     mean2_col = f'mean{window_size}_2'
     
+    print(f'正在计算窗口大小为 {window_size} 的特征...')
     df[cnt_col] = Parallel(n_jobs=-1)(
         delayed(nn_cnt)(df, idx, window_size) for idx in tqdm(df.index)
     )
@@ -109,23 +113,44 @@ def calculate_features(df, window_size):
     return df
 
 def preprocess(infile, outfile):
-    scaler = MinMaxScaler()
-    df = pd.read_csv(infile, usecols=['value1', 'value2'], index_col=False)
+    df = pd.read_csv(infile)
+    print(f'df.shape: {df.shape}')
+    # 将 literals 列表转换为多个数值列
+    # 假设每行的 literals 长度相同
+    literals_length = len(ast.literal_eval(df['literals'].iloc[0]))  # 获取列表长度
+    print(f'literals_length: {literals_length}')
+    # 创建新的 DataFrame 来存储展开后的数值
+    values_df = pd.DataFrame(
+        [ast.literal_eval(row) for row in df['literals']],
+        columns=[f'value_{i+1}' for i in range(literals_length)]
+    )
     
     # 数据预处理
-    for col in ['value1', 'value2']:
-        df[col] = pd.to_numeric(df[col], errors='coerce')
-        df[[col]] = scaler.fit_transform(df[[col]])
+    scaler = MinMaxScaler()
+    for col in values_df.columns:
+        # 检查并转换 category 类型
+        if values_df[col].dtype.name == 'category':
+            values_df[col] = values_df[col].cat.codes
+        values_df[col] = pd.to_numeric(values_df[col], errors='coerce')
+        values_df[[col]] = scaler.fit_transform(values_df[[col]])
     
     # 计算不同窗口大小的特征
     window_sizes = [200, 400, 800]
     for window_size in window_sizes:
-        df = calculate_features(df, window_size)
+        df = calculate_features(values_df, window_size)
     
     df.to_csv(outfile)
     return df
 
 def extract_features():
+    print('开始处理正样本数据...')
     df = preprocess(config.POSITIVE_FILE, config.POSITIVE_FEATURES)
+    print('正样本数据处理完成')
+    
+    print('开始处理负样本数据...')
     df2 = preprocess(config.NEGATIVE_FILE, config.NEGATIVE_FEATURES)
+    print('负样本数据处理完成')
+    
+    print('开始绘制特征分布图...')
     my_plot(df, df2)
+    print('特征工程全部完成')

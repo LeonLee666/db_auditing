@@ -1,8 +1,8 @@
-POSITIVE_FILE = 'spider-clean.csv'
+POSITIVE_FILE = 'spider.csv'
 POSITIVE_FEATURES = 'spider-nn.csv'
 POSITIVE_SIZE = 450000
 
-NEGATIVE_FILE = 'normal-clean.csv'
+NEGATIVE_FILE = 'normal.csv'
 NEGATIVE_FEATURES = 'normal-nn.csv'
 NEGATIVE_SIZE = 450000
 
