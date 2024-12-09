@@ -7,6 +7,7 @@ from joblib import Parallel, delayed
 from sklearn.preprocessing import MinMaxScaler
 from tqdm import tqdm
 import ast
+from gensim.models import Word2Vec
 
 import config
 
@@ -36,7 +37,7 @@ def my_plot(df, df2):
 
 def are_points_close(point1, point2, num_bins=1000):
     """
-    判断两个高维空间中的点是否距离很近。
+    判断��个高维空间中的点是否距离很近。
     参数:
     - point1: 第一个点的NumPy数组。
     - point2: 第二个点的NumPy数组。
@@ -104,9 +105,8 @@ def calculate_features(df, window_size):
     mean2_col = f'mean{window_size}_2'
     
     print(f'正在计算窗口大小为 {window_size} 的特征...')
-    df[cnt_col] = Parallel(n_jobs=-1)(
-        delayed(nn_cnt)(df, idx, window_size) for idx in tqdm(df.index)
-    )
+    # 移除并行处理，使用普通的列表推导式确保顺序性
+    df[cnt_col] = [nn_cnt(df, idx, window_size) for idx in tqdm(df.index)]
     df[mean1_col] = df[cnt_col].rolling(window=window_size).max()
     df[mean2_col] = df[mean1_col].rolling(window=window_size).mean()
     
@@ -115,14 +115,36 @@ def calculate_features(df, window_size):
 def preprocess(infile, outfile):
     df = pd.read_csv(infile)
     print(f'df.shape: {df.shape}')
-    # 将 literals 列表转换为多个数值列
-    # 假设每行的 literals 长度相同
-    literals_length = len(ast.literal_eval(df['literals'].iloc[0]))  # 获取列表长度
-    print(f'literals_length: {literals_length}')
-    # 创建新的 DataFrame 来存储展开后的数值
+    
+    # 将literals转换为词嵌入并同时转换为字符串
+    print('正在转换literals为词嵌入...')
+    literals_str = [[str(item) for item in ast.literal_eval(row)] 
+                   for row in tqdm(df['literals'], desc='转换literals并处理样本')]
+    vector_size = 1
+    w2v_model = Word2Vec(sentences=literals_str, 
+                        vector_size=vector_size,  
+                        window=1,
+                        min_count=1,
+                        workers=4)
+    
+    # 保留所有词向量而不是取平均值
+    embedded_vectors = []
+    max_sequence_length = max(len(sequence) for sequence in literals_str)
+    
+    for sequence in tqdm(literals_str, desc='生成词向量'):
+        # 获取每个token的词向量
+        sequence_vectors = [w2v_model.wv[token] for token in sequence]
+        # 填充序列至最大长度
+        if len(sequence_vectors) < max_sequence_length:
+            padding = [np.zeros(32) for _ in range(max_sequence_length - len(sequence_vectors))]
+            sequence_vectors.extend(padding)
+        # 将所有向量展平
+        flat_vector = np.concatenate(sequence_vectors)
+        embedded_vectors.append(flat_vector)
+    # 修改列名生成逻辑以匹配新的维度
     values_df = pd.DataFrame(
-        [ast.literal_eval(row) for row in df['literals']],
-        columns=[f'value_{i+1}' for i in range(literals_length)]
+        embedded_vectors,
+        columns=[f'value_{i+1}' for i in range(max_sequence_length * vector_size)]
     )
     
     # 数据预处理
