@@ -39,8 +39,7 @@ def main():
     
     model = MyLSTM(
         batch_size=config.TRAINING_BATCH_SIZE,
-        learning_rate=config.LEARNING_RATE,
-        basic=True
+        learning_rate=config.LEARNING_RATE
     )
     
     # Training

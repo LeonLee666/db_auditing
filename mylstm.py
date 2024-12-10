@@ -17,18 +17,11 @@ f1_score = F1Score(num_classes=config.OUTPUT_CLASSES, task='binary')
 
 
 class MyLSTM(pl.LightningModule):
-    def __init__(self, batch_size, learning_rate, basic=True):
+    def __init__(self, batch_size, learning_rate):
         super(MyLSTM, self).__init__()
-        self.basic = basic
         self.learning_rate = learning_rate
         self.batch_size = batch_size
-        self.train_set, self.val_set, self.test_set = PrepareData()
-        if not self.basic:
-            # 卷积层
-            self.conv1 = nn.Conv1d(in_channels=config.INPUT_SIZE, out_channels=config.CONV_OUT_CHANNELS,
-                                   kernel_size=config.KERNEL_SIZE)
-            self.pool = nn.MaxPool1d(kernel_size=config.POOL_SIZE)  # 池化层
-            config.INPUT_SIZE = config.CONV_OUT_CHANNELS
+        self.train_set, self.val_set, self.test_set = PrepareData()        
 
         self.lstm = nn.LSTM(
             input_size=config.INPUT_SIZE,
@@ -43,12 +36,6 @@ class MyLSTM(pl.LightningModule):
 
     def forward(self, x, labels=None):
         # x.shape = [batch size, seq length X feature size]
-        if not self.basic:
-            x = x.permute(0, 2, 1)  # 转换为 [batch size, feature size, seq length] 以适应 Conv1D
-            x = self.conv1(x)
-            x = F.relu(x)
-            x = self.pool(x)  # 池化层
-            x = x.permute(0, 2, 1)  # 转回为 [batch size, seq length, feature size] 以适应 LSTM
         self.lstm.flatten_parameters()
         h_0 = torch.zeros(config.LSTM_LAYER, x.size(0), config.HIDDEN_SIZE).to(x.device).requires_grad_()
         c_0 = torch.zeros(config.LSTM_LAYER, x.size(0), config.HIDDEN_SIZE).to(x.device).requires_grad_()

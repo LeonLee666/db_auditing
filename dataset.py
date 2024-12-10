@@ -3,7 +3,7 @@ import torch
 from sklearn.model_selection import train_test_split
 from torch.utils.data import Dataset
 import config
-from feature_engineering import extract_features
+from feature_engineering import preprocess, my_plot
 
 def ReadFileAsDataFrame(file):
     usecols = ['mean200_2', 'mean400_2', 'mean800_2']
@@ -14,7 +14,18 @@ def ReadFileAsDataFrame(file):
 # get data from csv file as a list, in which every item is a tuple(nparray[][],nparray[])
 def PrepareData():
     if config.NEED_CALC_FEATURES == 1:
-        extract_features()
+        print('开始处理正样本数据...')
+        positive_df = preprocess(config.POSITIVE_FILE, config.POSITIVE_FEATURES)
+        print('正样本数据处理完成')
+        
+        print('开始处理负样本数据...')
+        negative_df = preprocess(config.NEGATIVE_FILE, config.NEGATIVE_FEATURES)
+        print('负样本数据处理完成')
+        
+        print('开始绘制特征分布图...')
+        my_plot(positive_df, negative_df)
+        print('特征工程全部完成')
+
     positive_df = ReadFileAsDataFrame(config.POSITIVE_FEATURES)
     negative_df = ReadFileAsDataFrame(config.NEGATIVE_FEATURES)
     data_list = []
