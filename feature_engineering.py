@@ -19,7 +19,7 @@ def read_file(file1, file2):
 
 def my_plot(df, df2):
     plt.figure(figsize=(10, 5))
-    window_sizes = [200, 400, 800]
+    window_sizes = [256, 512, 1024]
     markers = ['o', 'x', 'v', ',']
     
     for i, window_size in enumerate(window_sizes):
@@ -109,7 +109,7 @@ def calculate_features_chunk(chunk, window_size):
     
     return chunk
 
-def calculate_features_parallel(df, window_size, n_jobs=4):
+def calculate_features_parallel(df, window_size, n_jobs=16):
     """
     并行计算特征
     """
@@ -185,7 +185,7 @@ def preprocess(infile, outfile):
     )
     
     # 计算不同窗口大小的特征
-    window_sizes = [200, 400, 800]
+    window_sizes = [256, 512, 1024]
     for window_size in window_sizes:
         start_time = time.time()
         values_df = calculate_features_parallel(values_df, window_size, n_jobs=32)

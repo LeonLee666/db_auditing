@@ -6,7 +6,7 @@ import config
 from feature_engineering import preprocess, my_plot
 
 def ReadFileAsDataFrame(file):
-    usecols = ['mean200_2', 'mean400_2', 'mean800_2']
+    usecols = ['mean256_2', 'mean512_2', 'mean1024_2']
     df = pd.read_csv(file, usecols=usecols, index_col=False)
     df = df.dropna(subset=usecols)
     return df
@@ -48,16 +48,3 @@ def PrepareData():
     train_set, test_set = train_test_split(data_list, test_size=0.2)
     train_set, val_set = train_test_split(train_set, test_size=0.25)
     return train_set, val_set, test_set
-
-# define dataset, the input args for dataset type is a list of (sample,label)
-class DataWrapper(Dataset):
-    def __init__(self, dataset):
-        # the type of dataset is a list of tuple(sample, lable)
-        self.dataset = dataset
-
-    def __len__(self):
-        return len(self.dataset)
-
-    def __getitem__(self, idx):
-        sample, encode_label = self.dataset[idx]
-        return torch.Tensor(sample), torch.tensor(encode_label, dtype=torch.int64)

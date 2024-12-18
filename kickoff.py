@@ -3,7 +3,7 @@ import argparse
 import pytorch_lightning as pl
 from pytorch_lightning.loggers import TensorBoardLogger
 import config
-from mylstm import MyLSTM
+from mymodel import MyModel
 
 def get_trainer_config(use_cuda, is_test=False):
     base_config = {
@@ -13,7 +13,7 @@ def get_trainer_config(use_cuda, is_test=False):
     
     if use_cuda:
         base_config.update({
-            'devices': [1],
+            'devices': [0],
             'accelerator': 'gpu'
         })
     else:
@@ -37,7 +37,7 @@ def main():
     config.NEED_CALC_FEATURES = args.fe
     pl.seed_everything(22)
     
-    model = MyLSTM(
+    model = MyModel(
         batch_size=config.TRAINING_BATCH_SIZE,
         learning_rate=config.LEARNING_RATE
     )

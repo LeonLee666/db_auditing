@@ -8,20 +8,38 @@ from torch.utils.data import DataLoader
 from torchmetrics import Accuracy, F1Score
 
 import config
-from dataset import PrepareData, DataWrapper
+from dataset import PrepareData
+from torch.utils.data import Dataset
+
 
 criterion = nn.CrossEntropyLoss()
 dropout = nn.Dropout(config.DROPOUT)
 acc = Accuracy(task='binary')
 f1_score = F1Score(num_classes=config.OUTPUT_CLASSES, task='binary')
 
+# define dataset, the input args for dataset type is a list of (sample,label)
+class DataWrapper(Dataset):
+    def __init__(self, dataset):
+        # the type of dataset is a list of tuple(sample, lable)
+        self.dataset = dataset
+        # 只在初始化时打印一次第一个样本的形状
+        if len(dataset) > 0:
+            first_sample, _ = dataset[0]
+            print(f"Sample shape: {first_sample.shape}")
 
-class MyLSTM(pl.LightningModule):
+    def __len__(self):
+        return len(self.dataset)
+
+    def __getitem__(self, idx):
+        sample, encode_label = self.dataset[idx]
+        return torch.Tensor(sample), torch.tensor(encode_label, dtype=torch.int64)
+
+class MyModel(pl.LightningModule):
     def __init__(self, batch_size, learning_rate):
-        super(MyLSTM, self).__init__()
+        super(MyModel, self).__init__()
         self.learning_rate = learning_rate
         self.batch_size = batch_size
-        self.train_set, self.val_set, self.test_set = PrepareData()        
+        self.train_set, self.val_set, self.test_set = PrepareData()
 
         self.lstm = nn.LSTM(
             input_size=config.INPUT_SIZE,
