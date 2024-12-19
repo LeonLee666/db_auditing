@@ -7,9 +7,8 @@ import numpy as np
 import pandas as pd
 from joblib import Parallel, delayed
 from sklearn.preprocessing import MinMaxScaler
-import ast
-from gensim.models import Word2Vec
-
+import config
+from sql_extract import extract_sql_file
 
 def read_file(file1, file2):
     cols = ['mean']
@@ -17,22 +16,34 @@ def read_file(file1, file2):
     df2 = pd.read_csv(file2, usecols=cols, index_col=False)
     return df, df2
 
-def my_plot(df, df2):
-    plt.figure(figsize=(10, 5))
-    window_sizes = [256, 512, 1024]
-    markers = ['o', 'x', 'v', ',']
+def plot_features(df, df2):
+    # 计算需要的子图行数和列数
+    n_plots = len(config.WINDOW_SIZES)
+    n_cols = 2  # 每行2个子图
+    n_rows = (n_plots + 1) // 2  # 向上取整
     
-    for i, window_size in enumerate(window_sizes):
-        mean_col = f'mean{window_size}_2'
-        plt.plot(df.index, df[mean_col], label=f'mean{window_size}-positive', marker=markers[i])
-        plt.plot(df2.index, df2[mean_col], label=f'mean{window_size}-negative', marker=markers[i+1])
+    # 创建一个更大的图形以容纳所有子图
+    plt.figure(figsize=(15, 5*n_rows))
+    markers = ['o', 'x']
     
-    plt.legend()
-    plt.title('Feature Sequences')
-    plt.xlabel('Index')
-    plt.ylabel('Feature Values')
-    plt.grid()
-    plt.savefig('my_plot.png')
+    for i, window_size in enumerate(config.WINDOW_SIZES):
+        # 创建子图
+        plt.subplot(n_rows, n_cols, i+1)
+        
+        mean_col = f'cnt{window_size}'
+        plt.plot(df.index, df[mean_col], label='positive', marker=markers[0], markersize=4)
+        plt.plot(df2.index, df2[mean_col], label='negative', marker=markers[1], markersize=4)
+        
+        plt.legend()
+        plt.title(f'Window Size = {window_size}')
+        plt.xlabel('Index')
+        plt.ylabel('Feature Values')
+        plt.grid(True)
+        plt.xlim(3000, 3500)
+    
+    # 调整子图之间的间距
+    plt.tight_layout()
+    plt.savefig('plot_features.png')
     plt.close()
 
 def are_points_close(point1, point2, num_bins=1000):
@@ -156,27 +167,40 @@ def calculate_features_parallel(df, window_size, n_jobs=16):
     
     return final_df
 
-def preprocess(infile, outfile):
-    df = pd.read_csv(infile)
+def parse_literals_to_dataframe(df):
+    """
+    将DataFrame中的literals列（list格式）转换为多个数值列
+    
+    参数:
+    df: 包含literals列的DataFrame
+    
+    返回:
+    DataFrame: 包含解析后的数值列（value_0, value_1, ...）
+    """
+    # 获取最大长度
+    max_length = max(len(x) for x in df['literals'])
+    
+    # 创建结果数组
+    result = np.zeros((len(df), max_length))
+    
+    # 填充数据
+    for i, row in enumerate(df['literals']):
+        result[i, :len(row)] = row
+    
+    # 创建DataFrame
+    values_df = pd.DataFrame(
+        result,
+        columns=[f'value_{i}' for i in range(max_length)]
+    )
+    
+    return values_df
 
-    literals_parsed = []
-    for row in df['literals']:
-        try:
-            parsed = ast.literal_eval(row)
-            literals_parsed.append(parsed)
-        except (ValueError, SyntaxError) as e:
-            print(f'解析错误: {e}')
-            literals_parsed.append([])
-    values_df = pd.DataFrame(literals_parsed, columns=[f'value_{i}' for i in range(len(literals_parsed[0]))])
-    # 检查并处理非数值型列
-    for col in values_df.columns:
-        if not np.issubdtype(values_df[col].dtype, np.number):
-            print(f'检测到非数值型列 {col}, 正在进行编码...')
-            # 对非数值列进行标签编码
-            from sklearn.preprocessing import LabelEncoder
-            le = LabelEncoder()
-            values_df[col] = le.fit_transform(values_df[col].astype(str))
-            print(f'列 {col} 编码完成')
+def preprocess(infile, outfile):
+    df = extract_sql_file(infile)
+    
+    # 调用新函数解析literals列
+    values_df = parse_literals_to_dataframe(df)
+    
     # 数据预处理
     scaler = MinMaxScaler()
     values_df = pd.DataFrame(
@@ -185,8 +209,7 @@ def preprocess(infile, outfile):
     )
     
     # 计算不同窗口大小的特征
-    window_sizes = [256, 512, 1024]
-    for window_size in window_sizes:
+    for window_size in config.WINDOW_SIZES:
         start_time = time.time()
         values_df = calculate_features_parallel(values_df, window_size, n_jobs=32)
         end_time = time.time()

@@ -1,12 +1,12 @@
 import pandas as pd
-import torch
 from sklearn.model_selection import train_test_split
 from torch.utils.data import Dataset
 import config
-from feature_engineering import preprocess, my_plot
+from feature_engineering import preprocess, plot_features
 
 def ReadFileAsDataFrame(file):
-    usecols = ['mean256_2', 'mean512_2', 'mean1024_2']
+    # 从配置文件中获取窗口大小
+    usecols = [f'mean{size}_2' for size in config.WINDOW_SIZES]
     df = pd.read_csv(file, usecols=usecols, index_col=False)
     df = df.dropna(subset=usecols)
     return df
@@ -23,7 +23,7 @@ def PrepareData():
         print('负样本数据处理完成')
         
         print('开始绘制特征分布图...')
-        my_plot(positive_df, negative_df)
+        plot_features(positive_df, negative_df)
         print('特征工程全部完成')
 
     positive_df = ReadFileAsDataFrame(config.POSITIVE_FEATURES)
