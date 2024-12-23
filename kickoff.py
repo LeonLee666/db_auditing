@@ -10,7 +10,7 @@ class LossBasedEarlyStopping(Callback):
     def on_train_batch_end(self, trainer, pl_module, outputs, batch, batch_idx):
         loss = outputs['loss']
         if loss <= 0.1:
-            print(f"\nLoss {loss:.4f} 已经小于 0.1，提前停止训练")
+            print(f"\nLoss {loss:.4f} is less than 0.1, early stopping")
             trainer.should_stop = True
 
 def get_trainer_config(use_cuda, is_test=False):

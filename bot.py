@@ -16,21 +16,21 @@ def get_connection():
         read_timeout=30,
     )
 
-def generate_s_i_id(dist_type='uniform', size=1):
+def generate_s_i_id(dist_type='uniform'):
     """根据指定分布生成s_i_id"""
     if dist_type == 'uniform':
-        return random.randint(1, 100000)
+        return np.random.randint(1, 100001)
     elif dist_type == 'zipf':
         # Zipf分布，alpha=1.5表示相对陡峭的幂律分布
-        return int(np.random.zipf(1.5, size=1)[0] % 100000) + 1
+        return int(np.random.zipf(1.1, size=1)[0] % 100000) + 1
     elif dist_type == 'normal':
         # 正态分布，均值设在50000，标准差为16666
         value = int(np.random.normal(50000, 16666))
         # 确保值在1-100000范围内
         return max(1, min(100000, value))
-    return random.randint(1, 100000)  # 默认返回均匀分布
+    return np.random.randint(1, 100001)  # 默认返回均匀分布
 
-def query_as_normal(dist_type='uniform'):
+def query_as_client(dist_type='uniform'):
     try:
         # 获取连接
         connection = get_connection()
@@ -75,7 +75,7 @@ def query_as_bot(dist_type='uniform'):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='数据库查询测试工具')
-    parser.add_argument('-n', '--normal', 
+    parser.add_argument('-c', '--client', 
                        type=int, 
                        default=10,
                        help='普通查询线程数量 (默认: 10)')
@@ -93,8 +93,8 @@ if __name__ == '__main__':
     threads = []
     
     # 创建普通查询线程
-    for _ in range(args.normal):
-        thread = threading.Thread(target=query_as_normal, args=(args.distribution,))
+    for _ in range(args.client):
+        thread = threading.Thread(target=query_as_client, args=(args.distribution,))
         threads.append(thread)
         thread.start()
     

@@ -124,7 +124,7 @@ def calculate_features_parallel(df, window_size, n_jobs=16):
     """
     并行计算特征
     """
-    print(f'正在并行计算窗口大小为 {window_size} 的特征...')
+    print(f'Calculating features in parallel for window size {window_size}...')
     chunk_size = len(df) // n_jobs
     
     chunks = []
@@ -198,7 +198,7 @@ def parse_literals_to_dataframe(df):
 def preprocess(infile, outfile):
     df = extract_sql_file(infile)
     
-    # 调用新函数解析literals列
+    # 调用新函数��析literals列
     values_df = parse_literals_to_dataframe(df)
     
     # 数据预处理
@@ -213,10 +213,10 @@ def preprocess(infile, outfile):
         start_time = time.time()
         values_df = calculate_features_parallel(values_df, window_size, n_jobs=32)
         end_time = time.time()
-        print(f'窗口大小 {window_size} 的特征计算耗时: {end_time - start_time:.2f}秒')
+        print(f'Time taken for window size {window_size}: {end_time - start_time:.2f} seconds')
     
     # 打印列名以进行调试
-    print("可用的列名:", values_df.columns.tolist())
+    print("Available columns:", values_df.columns.tolist())
     
     values_df.to_csv(outfile, index=False)
     return values_df

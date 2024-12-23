@@ -103,7 +103,7 @@ def extract_sql_file(input_file):
     sql_df = sql_df[sql_df['template'] == filter_sql]
     
     if len(sql_df) == 0:
-        raise ValueError("没有找到匹配的SQL模板")
+        raise ValueError("No matching SQL template found")
     
     return sql_df
 

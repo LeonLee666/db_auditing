@@ -14,17 +14,17 @@ def ReadFileAsDataFrame(file):
 # get data from csv file as a list, in which every item is a tuple(nparray[][],nparray[])
 def PrepareData():
     if config.NEED_CALC_FEATURES == 1:
-        print('开始处理正样本数据...')
+        print('Processing positive samples...')
         positive_df = preprocess(config.POSITIVE_FILE, config.POSITIVE_FEATURES)
-        print('正样本数据处理完成')
+        print('Positive samples processing completed')
         
-        print('开始处理负样本数据...')
+        print('Processing negative samples...')
         negative_df = preprocess(config.NEGATIVE_FILE, config.NEGATIVE_FEATURES)
-        print('负样本数据处理完成')
+        print('Negative samples processing completed')
         
-        print('开始绘制特征分布图...')
+        print('Starting to plot feature distributions...')
         plot_features(positive_df, negative_df)
-        print('特征工程全部完成')
+        print('Feature engineering completed')
 
     positive_df = ReadFileAsDataFrame(config.POSITIVE_FEATURES)
     negative_df = ReadFileAsDataFrame(config.NEGATIVE_FEATURES)
