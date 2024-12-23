@@ -1,14 +1,23 @@
-import sys
 import argparse
 import pytorch_lightning as pl
 from pytorch_lightning.loggers import TensorBoardLogger
+from pytorch_lightning.callbacks import Callback
 import config
 from mymodel import MyModel
+
+# 添加 EarlyStoppingCallback
+class LossBasedEarlyStopping(Callback):
+    def on_train_batch_end(self, trainer, pl_module, outputs, batch, batch_idx):
+        loss = outputs['loss']
+        if loss <= 0.1:
+            print(f"\nLoss {loss:.4f} 已经小于 0.1，提前停止训练")
+            trainer.should_stop = True
 
 def get_trainer_config(use_cuda, is_test=False):
     base_config = {
         'logger': TensorBoardLogger(save_dir="metrics", name="audit"),
         'enable_progress_bar': True,
+        'callbacks': [LossBasedEarlyStopping()],  # 添加callback
     }
     
     if use_cuda:

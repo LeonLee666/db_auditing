@@ -39,7 +39,7 @@ def plot_features(df, df2):
         plt.xlabel('Index')
         plt.ylabel('Feature Values')
         plt.grid(True)
-        plt.xlim(3000, 3500)
+        plt.xlim(0, 20000)
     
     # 调整子图之间的间距
     plt.tight_layout()
