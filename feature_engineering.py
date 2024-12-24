@@ -10,12 +10,6 @@ from sklearn.preprocessing import MinMaxScaler
 import config
 from sql_extract import extract_sql_file
 
-def read_file(file1, file2):
-    cols = ['mean']
-    df = pd.read_csv(file1, usecols=cols, index_col=False)
-    df2 = pd.read_csv(file2, usecols=cols, index_col=False)
-    return df, df2
-
 def plot_features(df, df2):
     # 计算需要的子图行数和列数
     n_plots = len(config.WINDOW_SIZES)
@@ -45,25 +39,6 @@ def plot_features(df, df2):
     plt.tight_layout()
     plt.savefig('plot_features.png')
     plt.close()
-
-def are_points_close(point1, point2, num_bins=1000):
-    """
-    判断个高维空间中的点是否距离很近。
-    参数:
-    - point1: 第一个点的NumPy数组。
-    - point2: 第二个点的NumPy数组。
-    - num_bins: 每个维度的等分区间数，默认为1000。
-    返回:
-    - 如果两个点在所有维度上都处于相同的等分区间，则返回True；否则返回False。
-    """
-    # 将每个点的每维度的值映射到等分区间的索引
-    bin_indices1 = (point1 * num_bins).astype(int)
-    bin_indices2 = (point2 * num_bins).astype(int)
-    # 检查所有维度是否都在相同的等分区间内
-    for idx1, idx2 in zip(bin_indices1, bin_indices2):
-        if idx1 != idx2:
-            return False
-    return True
 
 def neighbor_count(df, index, threshold=0.001):
     start = max(0, index - 200)

@@ -1,14 +1,13 @@
-POSITIVE_FILE = 'yes.log'
+
 POSITIVE_FEATURES = 'positive.csv'
 POSITIVE_SIZE = 450000
 
-NEGATIVE_FILE = 'no.log'
 NEGATIVE_FEATURES = 'negative.csv'
 NEGATIVE_SIZE = 450000
 
 NEED_CALC_FEATURES = False
 # 单个时序样本的长度，也就是一个时序样本包含多少条sql
-SEQ_LENGTH = 20000
+SEQ_LENGTH = 30000
 
 # 时序metric的打点种类，对应sql中的变量个数
 WINDOW_SIZES = [256, 1024, 4096, 16384]

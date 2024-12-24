@@ -4,14 +4,6 @@ from torch.utils.data import Dataset
 import config
 from feature_engineering import preprocess, plot_features
 
-def ReadFileAsDataFrame(file):
-    # 从配置文件中获取窗口大小
-    usecols = [f'mean{size}_2' for size in config.WINDOW_SIZES]
-    df = pd.read_csv(file, usecols=usecols, index_col=False)
-    df = df.dropna(subset=usecols)
-    return df
-
-# get data from csv file as a list, in which every item is a tuple(nparray[][],nparray[])
 def PrepareData():
     if config.NEED_CALC_FEATURES == 1:
         print('Processing positive samples...')
@@ -26,8 +18,9 @@ def PrepareData():
         plot_features(positive_df, negative_df)
         print('Feature engineering completed')
 
-    positive_df = ReadFileAsDataFrame(config.POSITIVE_FEATURES)
-    negative_df = ReadFileAsDataFrame(config.NEGATIVE_FEATURES)
+    usecols = [f'mean{size}_2' for size in config.WINDOW_SIZES]
+    positive_df = pd.read_csv(config.POSITIVE_FEATURES, usecols=usecols).dropna(subset=usecols)
+    negative_df = pd.read_csv(config.NEGATIVE_FEATURES, usecols=usecols).dropna(subset=usecols)
     data_list = []
     cnt = 0
     for i in range(0, len(positive_df) - config.SEQ_LENGTH + 1, 10):
