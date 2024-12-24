@@ -30,7 +30,7 @@ def plot_features(df, df2):
         # 创建子图
         plt.subplot(n_rows, n_cols, i+1)
         
-        mean_col = f'cnt{window_size}'
+        mean_col = f'mean{window_size}_2'
         plt.plot(df.index, df[mean_col], label='positive', marker=markers[0], markersize=4)
         plt.plot(df2.index, df2[mean_col], label='negative', marker=markers[1], markersize=4)
         
@@ -39,7 +39,7 @@ def plot_features(df, df2):
         plt.xlabel('Index')
         plt.ylabel('Feature Values')
         plt.grid(True)
-        plt.xlim(0, 20000)
+        # plt.xlim(20000, 30000)
     
     # 调整子图之间的间距
     plt.tight_layout()
@@ -167,39 +167,43 @@ def calculate_features_parallel(df, window_size, n_jobs=16):
     
     return final_df
 
-def parse_literals_to_dataframe(df):
+def extract_and_parse_sql_file(infile):
     """
-    将DataFrame中的literals列（list格式）转换为多个数值列
+    从SQL文件中提取数据并将literals列转换为数值列
     
     参数:
-    df: 包含literals列的DataFrame
+    infile: SQL文件路径
     
     返回:
     DataFrame: 包含解析后的数值列（value_0, value_1, ...）
     """
-    # 获取最大长度
-    max_length = max(len(x) for x in df['literals'])
+    # 添加计时开始
+    start_time = time.time()
     
-    # 创建结果数组
+    # 提取原始数据
+    df = extract_sql_file(infile)
+    
+    # 获取最大长度并创建结果数组
+    max_length = max(len(x) for x in df['literals'])
     result = np.zeros((len(df), max_length))
     
     # 填充数据
     for i, row in enumerate(df['literals']):
         result[i, :len(row)] = row
     
-    # 创建DataFrame
-    values_df = pd.DataFrame(
+    # 计算耗时并打印
+    end_time = time.time()
+    print(f'Time taken for SQL file extraction and parsing: {end_time - start_time:.2f} seconds')
+    
+    # 创建并返回DataFrame
+    return pd.DataFrame(
         result,
         columns=[f'value_{i}' for i in range(max_length)]
     )
-    
-    return values_df
 
 def preprocess(infile, outfile):
-    df = extract_sql_file(infile)
-    
-    # 调用新函数��析literals列
-    values_df = parse_literals_to_dataframe(df)
+    # 使用新的合并函数
+    values_df = extract_and_parse_sql_file(infile)
     
     # 数据预处理
     scaler = MinMaxScaler()
