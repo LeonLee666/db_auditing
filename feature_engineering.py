@@ -15,7 +15,6 @@ def plot_features(df, df2):
     n_plots = len(config.WINDOW_SIZES)
     n_cols = 2  # 每行2个子图
     n_rows = (n_plots + 1) // 2  # 向上取整
-    
     # 创建一个更大的图形以容纳所有子图
     plt.figure(figsize=(15, 5*n_rows))
     markers = ['o', 'x']
@@ -23,11 +22,9 @@ def plot_features(df, df2):
     for i, window_size in enumerate(config.WINDOW_SIZES):
         # 创建子图
         plt.subplot(n_rows, n_cols, i+1)
-        
         mean_col = f'mean{window_size}_2'
         plt.plot(df.index, df[mean_col], label='positive', marker=markers[0], markersize=4)
         plt.plot(df2.index, df2[mean_col], label='negative', marker=markers[1], markersize=4)
-        
         plt.legend()
         plt.title(f'Window Size = {window_size}')
         plt.xlabel('Index')
@@ -40,8 +37,8 @@ def plot_features(df, df2):
     plt.savefig('plot_features.png')
     plt.close()
 
-def neighbor_count(df, index, threshold=0.001):
-    start = max(0, index - 200)
+def neighbor_count(df, index, window_size, threshold=0.001):
+    start = max(0, index - window_size)
     end = min(len(df), index)
     # 获取当前行的值作为一个空间点
     current_row = df.iloc[index].values
@@ -89,19 +86,38 @@ def calculate_features_chunk(chunk, window_size):
         
         counts.append(knn)
     
+    chunk_result = chunk.copy()
+    chunk_result[cnt_col] = counts
+    chunk_result[mean1_col] = chunk_result[cnt_col].rolling(window=window_size).mean()
+    chunk_result[mean2_col] = chunk_result[mean1_col].rolling(window=window_size).mean()
+    
+    return chunk_result
+
+def calculate_features_chunk_neighbor(chunk, window_size):
+    """
+    使用neighbor_count方法的数据块处理函数
+    """
+    cnt_col = f'cnt{window_size}'
+    mean1_col = f'mean{window_size}_1'
+    mean2_col = f'mean{window_size}_2'
+    
+    counts = []
+    for idx in range(len(chunk)):
+        count = neighbor_count(
+            chunk, 
+            idx,
+            window_size,
+            threshold=0.001
+        )
+        counts.append(count)
+    
     chunk[cnt_col] = counts
     chunk[mean1_col] = chunk[cnt_col].rolling(window=window_size).mean()
     chunk[mean2_col] = chunk[mean1_col].rolling(window=window_size).mean()
-    
     return chunk
 
-def calculate_features_parallel(df, window_size, n_jobs=16):
-    """
-    并行计算特征
-    """
-    print(f'Calculating features in parallel for window size {window_size}...')
+def calculate_features_parallel(df, window_size, n_jobs=32):
     chunk_size = len(df) // n_jobs
-    
     chunks = []
     results = []
     
@@ -118,29 +134,47 @@ def calculate_features_parallel(df, window_size, n_jobs=16):
             chunk = df.iloc[start_idx-window_size:end_idx].copy()
             chunks.append(chunk)
     
+    # 根据配置选择处理函数
+    process_func = (calculate_features_chunk_neighbor 
+                   if config.FEATURE_ALGORITHM == 'neighbor_count' 
+                   else calculate_features_chunk)
+    
     # 并行处理
     results = Parallel(n_jobs=n_jobs)(
-        delayed(calculate_features_chunk)(chunk, window_size) 
+        delayed(process_func)(chunk, window_size) 
         for i, chunk in enumerate(chunks)
     )
     
-    # 合并结果
-    final_df = df.copy()
+    # 定义需要更新的列名
     cols_to_update = [f'cnt{window_size}', f'mean{window_size}_1', f'mean{window_size}_2']
     
+    # 初始化一个空的DataFrame来存储结果
+    final_df = pd.DataFrame()
+    
+    # 合并结果
     for i, result_chunk in enumerate(results):
-        start_idx = i * chunk_size
-        end_idx = min(start_idx + chunk_size, len(df))
-        
         if i == 0:
-            # 第一个chunk直接使用全部结果
-            final_df.loc[start_idx:end_idx-1, cols_to_update] = result_chunk[cols_to_update].iloc[:end_idx-start_idx].values
+            # 第一个chunk直接添加
+            final_df = pd.concat([final_df, result_chunk[cols_to_update]], ignore_index=True)
         else:
             # 非第一个chunk需要丢弃前window_size行的数据
-            result_values = result_chunk[cols_to_update].iloc[window_size:window_size+(end_idx-start_idx)].values
-            final_df.loc[start_idx:end_idx-1, cols_to_update] = result_values
+            chunk_start = window_size
+            final_df = pd.concat([final_df, result_chunk[cols_to_update].iloc[chunk_start:]], ignore_index=True)
     
-    return final_df
+    # 确保结果长度正确
+    if len(final_df) > len(df):
+        final_df = final_df.iloc[:len(df)]
+    elif len(final_df) < len(df):
+        # 如果长度不足，用最后一行的值填充
+        rows_to_add = len(df) - len(final_df)
+        last_row = final_df.iloc[[-1]]
+        final_df = pd.concat([final_df] + [last_row] * rows_to_add, ignore_index=True)
+        final_df = final_df.iloc[:len(df)]
+    
+    for col in cols_to_update:
+        df[col] = final_df[col].values
+    
+    return df
 
 def extract_and_parse_sql_file(infile):
     """
@@ -190,7 +224,7 @@ def preprocess(infile, outfile):
     # 计算不同窗口大小的特征
     for window_size in config.WINDOW_SIZES:
         start_time = time.time()
-        values_df = calculate_features_parallel(values_df, window_size, n_jobs=32)
+        values_df = calculate_features_parallel(values_df, window_size, n_jobs=config.JOBS)
         end_time = time.time()
         print(f'Time taken for window size {window_size}: {end_time - start_time:.2f} seconds')
     

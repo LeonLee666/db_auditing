@@ -5,6 +5,8 @@ POSITIVE_SIZE = 450000
 NEGATIVE_FEATURES = 'negative.csv'
 NEGATIVE_SIZE = 450000
 
+
+JOBS = 1
 NEED_CALC_FEATURES = False
 # 单个时序样本的长度，也就是一个时序样本包含多少条sql
 SEQ_LENGTH = 30000

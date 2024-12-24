@@ -39,7 +39,7 @@ class MyModel(pl.LightningModule):
         super(MyModel, self).__init__()
         self.learning_rate = learning_rate
         self.batch_size = batch_size
-        self.train_set, self.val_set, self.test_set = PrepareData()
+        self.train_set, self.test_set = PrepareData()
 
         self.lstm = nn.LSTM(
             input_size=config.INPUT_SIZE,
@@ -91,13 +91,6 @@ class MyModel(pl.LightningModule):
             self.trainer.should_stop = True  # 手动停止训练
         return {"loss": loss, "accuracy": step_acc, "f1": step_f1}
 
-    def validation_step(self, batch, batch_idx):
-        loss, step_acc, step_f1 = self.__common__calc__(batch, batch_idx)
-        self.log("validation loss", loss, on_step=True, prog_bar=True, logger=True, sync_dist=True)
-        self.log("validation accuracy", step_acc, on_step=True, prog_bar=True, logger=True, sync_dist=True)
-        self.log("validation f1 score", step_f1, on_step=True, prog_bar=True, logger=True, sync_dist=True)
-        return {"loss": loss, "accuracy": step_acc, "f1": step_f1}
-
     def test_step(self, batch, batch_idx):
         loss, step_acc, step_f1 = self.__common__calc__(batch, batch_idx)
         self.log("test loss", loss, on_step=True, prog_bar=True, logger=True, sync_dist=True)
@@ -108,15 +101,6 @@ class MyModel(pl.LightningModule):
     def train_dataloader(self):
         return DataLoader(
             dataset=DataWrapper(self.train_set),
-            batch_size=self.batch_size,
-            shuffle=True,
-            persistent_workers=True,
-            num_workers=cpu_count()
-        )
-
-    def val_dataloader(self):
-        return DataLoader(
-            dataset=DataWrapper(self.val_set),
             batch_size=self.batch_size,
             shuffle=True,
             persistent_workers=True,

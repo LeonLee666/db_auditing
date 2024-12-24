@@ -39,5 +39,4 @@ def PrepareData():
         if cnt == config.NEGATIVE_SIZE:
             break
     train_set, test_set = train_test_split(data_list, test_size=0.2)
-    train_set, val_set = train_test_split(train_set, test_size=0.25)
-    return train_set, val_set, test_set
+    return train_set, test_set
