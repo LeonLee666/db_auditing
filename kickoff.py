@@ -51,7 +51,8 @@ def main():
     config.NEED_CALC_FEATURES = args.fe
     config.POSITIVE_FILE = args.positive
     config.NEGATIVE_FILE = args.negative
-    config.INPUT_SIZE = len(config.WINDOW_SIZES)
+    # config.INPUT_SIZE = len(config.WINDOW_SIZES)
+    config.INPUT_SIZE = len(config.WINDOW_SIZES) * (2+1)
     config.FEATURE_ALGORITHM = args.algorithm
     pl.seed_everything(22)
     

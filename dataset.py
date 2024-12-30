@@ -19,6 +19,14 @@ def PrepareData():
         print('Feature engineering completed')
 
     usecols = [f'mean{size}_2' for size in config.WINDOW_SIZES]
+    grid_mean_cols = []
+    for size in config.WINDOW_SIZES:
+        grid_mean_base = f'grid_mean{size}'
+        for dim in range(len([col for col in pd.read_csv(config.POSITIVE_FEATURES, nrows=1).columns 
+                            if col.startswith('value_')])):
+            grid_mean_cols.append(f'{grid_mean_base}_dim_{dim}')
+    usecols.extend(grid_mean_cols)
+
     positive_df = pd.read_csv(config.POSITIVE_FEATURES, usecols=usecols).dropna(subset=usecols)
     negative_df = pd.read_csv(config.NEGATIVE_FEATURES, usecols=usecols).dropna(subset=usecols)
     data_list = []

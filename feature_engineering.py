@@ -83,22 +83,21 @@ def calculate_features_chunk(chunk, window_size):
     cnt_col = f'cnt{window_size}'
     mean1_col = f'mean{window_size}_1'
     mean2_col = f'mean{window_size}_2'
+    grid_mean_col = f'grid_mean{window_size}'  # 新增grid平均值列
     
     value_columns = [col for col in chunk.columns if col.startswith('value_')]
     counts = []
+    grid_means = []  # 存储加权平均grid值
     
-    # 使用numpy数组替代GPU数组
     chunk_data = chunk[value_columns].values
     num_bins = 1000
-    
-    # 使用字典来记录bin的计数
     bin_counts = defaultdict(int)
     
     for idx in range(len(chunk)):
         current_row = chunk_data[idx]
         bin_idx = tuple((current_row * num_bins).astype(np.int32))
         
-        # 获取当前bin的计数
+        # 更新bin计数
         knn = bin_counts[bin_idx]
         bin_counts[bin_idx] += 1
         
@@ -106,13 +105,36 @@ def calculate_features_chunk(chunk, window_size):
             outofdate_row = chunk_data[idx - window_size]
             old_bin_idx = tuple((outofdate_row * num_bins).astype(np.int32))
             bin_counts[old_bin_idx] -= 1
+            if bin_counts[old_bin_idx] == 0:
+                del bin_counts[old_bin_idx]
         
         counts.append(knn)
+        
+        # 获取top 10最密集的grid
+        top_bins = sorted(bin_counts.items(), key=lambda x: x[1], reverse=True)[:10]
+        total_count = sum(count for _, count in top_bins)
+        
+        if total_count > 0:
+            # 计算加权平均grid值
+            weighted_grid = np.zeros(len(value_columns))
+            for bin_idx, count in top_bins:
+                grid_coord = np.array(bin_idx) / num_bins  # 转换回原始空间的grid坐标
+                weight = count / total_count
+                weighted_grid += grid_coord * weight
+        else:
+            weighted_grid = np.zeros(len(value_columns))
+            
+        grid_means.append(weighted_grid)
     
     chunk_result = chunk.copy()
     chunk_result[cnt_col] = counts
     chunk_result[mean1_col] = chunk_result[cnt_col].rolling(window=window_size).mean()
     chunk_result[mean2_col] = chunk_result[mean1_col].rolling(window=window_size).mean()
+    
+    # 为每个维度添加grid平均值
+    for j in range(len(value_columns)):
+        col_name = f'{grid_mean_col}_dim_{j}'
+        chunk_result[col_name] = [m[j] for m in grid_means]
     
     return chunk_result
 
@@ -147,7 +169,12 @@ def calculate_features_parallel(df, window_size, n_jobs=32):
     
     # 定义需要更新的列名
     cols_to_update = [f'cnt{window_size}', f'mean{window_size}_1', f'mean{window_size}_2']
-    
+    grid_mean_cols = []
+    grid_mean_base = f'grid_mean{window_size}'
+    for dim in range(len([col for col in df.columns if col.startswith('value_')])):
+        grid_mean_cols.append(f'{grid_mean_base}_dim_{dim}')
+    cols_to_update.extend(grid_mean_cols)
+
     # 初始化一个空的DataFrame来存储结果
     final_df = pd.DataFrame()
     
