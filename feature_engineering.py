@@ -37,21 +37,44 @@ def plot_features(df, df2):
     plt.savefig('plot_features.png')
     plt.close()
 
-def neighbor_count(df, index, window_size, threshold=0.001):
+def neighbor_count(df, index, window_size, threshold=0.01):
     start = max(0, index - window_size)
     end = min(len(df), index)
     # 获取当前行的值作为一个空间点
     current_row = df.iloc[index].values
     # 计算符合条件的个数
     count = 0
+    # 改用简单的循环计算距离
     for i in range(start, end):
-        if i != index:  # 排除自身
-            neighbor_row = df.iloc[i].values
-            # 计算二范式距离
-            distance = np.linalg.norm(current_row - neighbor_row)
-            if distance <= threshold:
-                count += 1
+        if i == index:
+            continue
+        distance = np.linalg.norm(current_row - df.iloc[i].values)
+        if distance <= threshold:
+            count += 1
     return count
+
+def calculate_features_chunk_neighbor(chunk, window_size):
+    """
+    使用neighbor_count方法的数据块处理函数
+    """
+    cnt_col = f'cnt{window_size}'
+    mean1_col = f'mean{window_size}_1'
+    mean2_col = f'mean{window_size}_2'
+    
+    counts = []
+    for idx in range(len(chunk)):
+        count = neighbor_count(
+            chunk, 
+            idx,
+            window_size,
+            threshold=0.001
+        )
+        counts.append(count)
+    
+    chunk[cnt_col] = counts
+    chunk[mean1_col] = chunk[cnt_col].rolling(window=window_size).mean()
+    chunk[mean2_col] = chunk[mean1_col].rolling(window=window_size).mean()
+    return chunk
 
 def calculate_features_chunk(chunk, window_size):
     """
@@ -92,29 +115,6 @@ def calculate_features_chunk(chunk, window_size):
     chunk_result[mean2_col] = chunk_result[mean1_col].rolling(window=window_size).mean()
     
     return chunk_result
-
-def calculate_features_chunk_neighbor(chunk, window_size):
-    """
-    使用neighbor_count方法的数据块处理函数
-    """
-    cnt_col = f'cnt{window_size}'
-    mean1_col = f'mean{window_size}_1'
-    mean2_col = f'mean{window_size}_2'
-    
-    counts = []
-    for idx in range(len(chunk)):
-        count = neighbor_count(
-            chunk, 
-            idx,
-            window_size,
-            threshold=0.001
-        )
-        counts.append(count)
-    
-    chunk[cnt_col] = counts
-    chunk[mean1_col] = chunk[cnt_col].rolling(window=window_size).mean()
-    chunk[mean2_col] = chunk[mean1_col].rolling(window=window_size).mean()
-    return chunk
 
 def calculate_features_parallel(df, window_size, n_jobs=32):
     chunk_size = len(df) // n_jobs
