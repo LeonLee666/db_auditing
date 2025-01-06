@@ -43,17 +43,20 @@ def main():
     parser.add_argument('--negative', type=str, required=True, help='negative log file path')
     parser.add_argument('--fe', action='store_true', help='is need re-calc features')
     parser.add_argument('--cuda', action='store_true', help='running device')
-    parser.add_argument('--algorithm', type=str, default='bin_count',
-                       choices=['neighbor_count', 'bin_count'],
-                       help='feature extraction algorithm (neighbor_count or bin_count)')
+    parser.add_argument('--algorithm', type=str, default='grid',
+                       choices=['euler', 'grid', 'centroid'],
+                       help='feature extraction algorithm (euler or grid)')
     args = parser.parse_args()
     
     config.NEED_CALC_FEATURES = args.fe
     config.POSITIVE_FILE = args.positive
     config.NEGATIVE_FILE = args.negative
-    # config.INPUT_SIZE = len(config.WINDOW_SIZES)
-    config.INPUT_SIZE = len(config.WINDOW_SIZES) * (2+1)
     config.FEATURE_ALGORITHM = args.algorithm
+    if config.FEATURE_ALGORITHM == 'centroid':
+        config.INPUT_SIZE = len(config.WINDOW_SIZES) * (2 + 1)
+    else:
+        config.INPUT_SIZE = len(config.WINDOW_SIZES)
+    
     pl.seed_everything(22)
     
     model = MyModel(

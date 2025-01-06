@@ -83,15 +83,17 @@ def calculate_features_chunk(chunk, window_size):
     cnt_col = f'cnt{window_size}'
     mean1_col = f'mean{window_size}_1'
     mean2_col = f'mean{window_size}_2'
-    grid_mean_col = f'grid_mean{window_size}'  # 新增grid平均值列
     
     value_columns = [col for col in chunk.columns if col.startswith('value_')]
     counts = []
-    grid_means = []  # 存储加权平均grid值
-    
-    chunk_data = chunk[value_columns].values
     num_bins = 1000
     bin_counts = defaultdict(int)
+    # 只在需要时计算grid特征
+    if config.FEATURE_ALGORITHM == 'centroid':
+        grid_means = []
+        grid_mean_col = f'grid_mean{window_size}'
+    
+    chunk_data = chunk[value_columns].values
     
     for idx in range(len(chunk)):
         current_row = chunk_data[idx]
@@ -110,31 +112,33 @@ def calculate_features_chunk(chunk, window_size):
         
         counts.append(knn)
         
-        # 获取top 10最密集的grid
-        top_bins = sorted(bin_counts.items(), key=lambda x: x[1], reverse=True)[:10]
-        total_count = sum(count for _, count in top_bins)
-        
-        if total_count > 0:
-            # 计算加权平均grid值
-            weighted_grid = np.zeros(len(value_columns))
-            for bin_idx, count in top_bins:
-                grid_coord = np.array(bin_idx) / num_bins  # 转换回原始空间的grid坐标
-                weight = count / total_count
-                weighted_grid += grid_coord * weight
-        else:
-            weighted_grid = np.zeros(len(value_columns))
+        # 只在需要时计算grid特征
+        if config.FEATURE_ALGORITHM == 'centroid':
+            # 获取top 10最密集的grid
+            top_bins = sorted(bin_counts.items(), key=lambda x: x[1], reverse=True)[:10]
+            total_count = sum(count for _, count in top_bins)
             
-        grid_means.append(weighted_grid)
+            if total_count > 0:
+                # 计算加权平均grid值
+                weighted_grid = np.zeros(len(value_columns))
+                for bin_idx, count in top_bins:
+                    grid_coord = np.array(bin_idx) / num_bins  # 转换回原始空间的grid坐标
+                    weight = count / total_count
+                    weighted_grid += grid_coord * weight
+            else:
+                weighted_grid = np.zeros(len(value_columns))
+            grid_means.append(weighted_grid)
     
     chunk_result = chunk.copy()
     chunk_result[cnt_col] = counts
     chunk_result[mean1_col] = chunk_result[cnt_col].rolling(window=window_size).mean()
     chunk_result[mean2_col] = chunk_result[mean1_col].rolling(window=window_size).mean()
     
-    # 为每个维度添加grid平均值
-    for j in range(len(value_columns)):
-        col_name = f'{grid_mean_col}_dim_{j}'
-        chunk_result[col_name] = [m[j] for m in grid_means]
+    # 只在需要时添加grid特征
+    if config.FEATURE_ALGORITHM == 'centroid':
+        for j in range(len(value_columns)):
+            col_name = f'{grid_mean_col}_dim_{j}'
+            chunk_result[col_name] = [m[j] for m in grid_means]
     
     return chunk_result
 
@@ -158,7 +162,7 @@ def calculate_features_parallel(df, window_size, n_jobs=32):
     
     # 根据配置选择处理函数
     process_func = (calculate_features_chunk_neighbor 
-                   if config.FEATURE_ALGORITHM == 'neighbor_count' 
+                   if config.FEATURE_ALGORITHM == 'euler' 
                    else calculate_features_chunk)
     
     # 并行处理
@@ -166,14 +170,15 @@ def calculate_features_parallel(df, window_size, n_jobs=32):
         delayed(process_func)(chunk, window_size) 
         for i, chunk in enumerate(chunks)
     )
-    
     # 定义需要更新的列名
     cols_to_update = [f'cnt{window_size}', f'mean{window_size}_1', f'mean{window_size}_2']
-    grid_mean_cols = []
-    grid_mean_base = f'grid_mean{window_size}'
-    for dim in range(len([col for col in df.columns if col.startswith('value_')])):
-        grid_mean_cols.append(f'{grid_mean_base}_dim_{dim}')
-    cols_to_update.extend(grid_mean_cols)
+    
+    if config.FEATURE_ALGORITHM == 'centroid':
+        grid_mean_cols = []
+        grid_mean_base = f'grid_mean{window_size}'
+        for dim in range(len([col for col in df.columns if col.startswith('value_')])):
+            grid_mean_cols.append(f'{grid_mean_base}_dim_{dim}')
+        cols_to_update.extend(grid_mean_cols)
 
     # 初始化一个空的DataFrame来存储结果
     final_df = pd.DataFrame()
@@ -206,31 +211,24 @@ def calculate_features_parallel(df, window_size, n_jobs=32):
 def extract_and_parse_sql_file(infile):
     """
     从SQL文件中提取数据并将literals列转换为数值列
-    
     参数:
     infile: SQL文件路径
-    
     返回:
     DataFrame: 包含解析后的数值列（value_0, value_1, ...）
     """
     # 添加计时开始
     start_time = time.time()
-    
     # 提取原始数据
     df = extract_sql_file(infile)
-    
     # 获取最大长度并创建结果数组
     max_length = max(len(x) for x in df['literals'])
     result = np.zeros((len(df), max_length))
-    
     # 填充数据
     for i, row in enumerate(df['literals']):
         result[i, :len(row)] = row
-    
     # 计算耗时并打印
     end_time = time.time()
     print(f'Time taken for SQL file extraction and parsing: {end_time - start_time:.2f} seconds')
-    
     # 创建并返回DataFrame
     return pd.DataFrame(
         result,
@@ -240,23 +238,19 @@ def extract_and_parse_sql_file(infile):
 def preprocess(infile, outfile):
     # 使用新的合并函数
     values_df = extract_and_parse_sql_file(infile)
-    
     # 数据预处理
     scaler = MinMaxScaler()
     values_df = pd.DataFrame(
         scaler.fit_transform(values_df),
         columns=values_df.columns
     )
-    
     # 计算不同窗口大小的特征
     for window_size in config.WINDOW_SIZES:
         start_time = time.time()
         values_df = calculate_features_parallel(values_df, window_size, n_jobs=config.JOBS)
         end_time = time.time()
         print(f'Time taken for window size {window_size}: {end_time - start_time:.2f} seconds')
-    
     # 打印列名以进行调试
     print("Available columns:", values_df.columns.tolist())
-    
     values_df.to_csv(outfile, index=False)
     return values_df
