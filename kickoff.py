@@ -43,31 +43,23 @@ def main():
     parser.add_argument('--negative', type=str, required=True, help='negative log file path')
     parser.add_argument('--fe', action='store_true', help='is need re-calc features')
     parser.add_argument('--cuda', action='store_true', help='running device')
-    parser.add_argument('--algorithm', type=str, default='grid',
-                       choices=['euler', 'grid', 'centroid'],
-                       help='feature extraction algorithm (euler or grid)')
-    args = parser.parse_args()
-    
+    args = parser.parse_args()    
     config.NEED_CALC_FEATURES = args.fe
     config.POSITIVE_FILE = args.positive
     config.NEGATIVE_FILE = args.negative
-    config.FEATURE_ALGORITHM = args.algorithm
     if config.FEATURE_ALGORITHM == 'centroid':
         config.INPUT_SIZE = len(config.WINDOW_SIZES) * (2 + 1)
     else:
         config.INPUT_SIZE = len(config.WINDOW_SIZES)
     
-    pl.seed_everything(22)
-    
+    pl.seed_everything(22)    
     model = MyModel(
         batch_size=config.TRAINING_BATCH_SIZE,
         learning_rate=config.LEARNING_RATE
-    )
-    
+    )    
     # Training
     trainer = pl.Trainer(**get_trainer_config(args.cuda))
-    trainer.fit(model)
-    
+    trainer.fit(model)    
     # Testing
     tester = pl.Trainer(**get_trainer_config(args.cuda, is_test=True))
     tester.test(model)
