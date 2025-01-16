@@ -17,7 +17,7 @@ def get_trainer_config(use_cuda, is_test=False):
     base_config = {
         'logger': TensorBoardLogger(save_dir="metrics", name="audit"),
         'enable_progress_bar': True,
-        'callbacks': [LossBasedEarlyStopping()],  # 添加callback
+        # 'callbacks': [LossBasedEarlyStopping()],  # 添加callback
     }
     
     if use_cuda:
@@ -52,7 +52,7 @@ def main():
     else:
         config.INPUT_SIZE = len(config.WINDOW_SIZES)
     
-    pl.seed_everything(22)    
+    # pl.seed_everything(22)    
     model = MyModel(
         batch_size=config.TRAINING_BATCH_SIZE,
         learning_rate=config.LEARNING_RATE

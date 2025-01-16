@@ -3,6 +3,10 @@ import threading
 import pymysql
 import argparse
 import numpy as np
+import sys
+from ratelimiter import RateLimiter  # 添加这行导入
+
+rate_limit = 10
 
 def get_connection():
     """获取数据库连接"""
@@ -22,7 +26,7 @@ def generate_s_i_id(dist_type='uniform'):
         return np.random.randint(1, 100001)
     elif dist_type == 'zipf':
         # Zipf分布，alpha=1.5表示相对陡峭的幂律分布
-        return int(np.random.zipf(1.1, size=1)[0] % 100000) + 1
+        return int(np.random.zipf(2.0, size=1)[0] % 100000) + 1
     elif dist_type == 'normal':
         # 正态分布，均值设在50000，标准差为16666
         value = int(np.random.normal(50000, 16666))
@@ -32,18 +36,19 @@ def generate_s_i_id(dist_type='uniform'):
 
 def query_as_client(dist_type='uniform'):
     try:
-        # 获取连接
         connection = get_connection()
         cursor = connection.cursor()
+        thread_rate_limiter = RateLimiter(max_calls=rate_limit, period=1)  # 每个线程独立的限流器
         
         for _ in range(500000):
             try:
-                s_w_id = random.randint(1, 5)
-                s_i_id = generate_s_i_id(dist_type)
-                query = f"SELECT * FROM bmsql_stock WHERE s_w_id = {s_w_id} AND s_i_id = {s_i_id};"
-                cursor.execute(query)
-                results = cursor.fetchall()
-                connection.commit()
+                with thread_rate_limiter:  # 使用线程独立的限流器
+                    s_w_id = random.randint(1, 5)
+                    s_i_id = generate_s_i_id(dist_type)
+                    query = f"SELECT * FROM bmsql_stock WHERE s_w_id = {s_w_id} AND s_i_id = {s_i_id};"
+                    cursor.execute(query)
+                    results = cursor.fetchall()
+                    connection.commit()
             except pymysql.MySQLError as err:
                 connection.rollback()
                 print(f"Error: {err}")
@@ -54,22 +59,24 @@ def query_as_client(dist_type='uniform'):
 
 def query_as_bot(dist_type='uniform'):
     try:
-        # 获取连接
         connection = get_connection()
         cursor = connection.cursor()
+        thread_rate_limiter = RateLimiter(max_calls=rate_limit, period=1)  # 添加线程独立的限流器
         
         for s_w_id in range(5, 0, -1):
             for s_i_id in range(100000, 0, -1):
                 try:
-                    query = f"SELECT * FROM bmsql_stock WHERE s_w_id = {s_w_id} AND s_i_id = {s_i_id};"
-                    cursor.execute(query)
-                    results = cursor.fetchall()
-                    connection.commit()
+                    with thread_rate_limiter:  # 使用限流器控制查询速率
+                        query = f"SELECT * FROM bmsql_stock WHERE s_w_id = {s_w_id} AND s_i_id = {s_i_id};"
+                        cursor.execute(query)
+                        results = cursor.fetchall()
+                        connection.commit()
                 except pymysql.MySQLError as err:
                     connection.rollback()
                     print(f"Error: {err}")
         cursor.close()
-        connection.close()
+        connection.close()        
+        sys.exit(0)
     except Exception as e:
         print(f"Outer error: {e}")
 
