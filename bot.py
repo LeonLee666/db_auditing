@@ -7,7 +7,7 @@ import sys
 from ratelimiter import RateLimiter  # 添加这行导入
 
 rate_limit = 10
-
+zipf = 1.2
 def get_connection():
     """获取数据库连接"""
     return pymysql.connect(
@@ -26,7 +26,7 @@ def generate_s_i_id(dist_type='uniform'):
         return np.random.randint(1, 100001)
     elif dist_type == 'zipf':
         # Zipf分布，alpha=1.5表示相对陡峭的幂律分布
-        return int(np.random.zipf(2.0, size=1)[0] % 100000) + 1
+        return int(np.random.zipf(zipf, size=1)[0] % 100000) + 1
     elif dist_type == 'normal':
         # 正态分布，均值设在50000，标准差为16666
         value = int(np.random.normal(50000, 16666))

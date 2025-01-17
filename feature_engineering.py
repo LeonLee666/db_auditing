@@ -13,24 +13,43 @@ from sql_extract import extract_sql_file
 def plot_features(df, df2):
     # 计算需要的子图行数和列数
     n_plots = len(config.WINDOW_SIZES)
-    n_cols = 2  # 每行2个子图
-    n_rows = (n_plots + 1) // 2  # 向上取整
+    if config.FEATURE_ALGORITHM == 'centroid':
+        n_plots *= 3  # 每个window_size有3个图（原特征 + 2个grid维度）
+    n_cols = 3 if config.FEATURE_ALGORITHM == 'centroid' else 2  # centroid时每行3个子图
+    n_rows = (n_plots + n_cols - 1) // n_cols  # 向上取整
+    
     # 创建一个更大的图形以容纳所有子图
     plt.figure(figsize=(15, 5*n_rows))
     markers = ['o', 'x']
     
-    for i, window_size in enumerate(config.WINDOW_SIZES):
-        # 创建子图
-        plt.subplot(n_rows, n_cols, i+1)
+    plot_idx = 1
+    # 对每个window_size绘制图表
+    for window_size in config.WINDOW_SIZES:
+        # 绘制原有的mean特征图
+        plt.subplot(n_rows, n_cols, plot_idx)
         mean_col = f'mean{window_size}_2'
         plt.plot(df.index, df[mean_col], label='positive', marker=markers[0], markersize=4)
         plt.plot(df2.index, df2[mean_col], label='negative', marker=markers[1], markersize=4)
         plt.legend()
-        plt.title(f'Window Size = {window_size}')
+        plt.title(f'Mean Feature (Window Size = {window_size})')
         plt.xlabel('Index')
         plt.ylabel('Feature Values')
         plt.grid(True)
-        # plt.xlim(20000, 30000)
+        plot_idx += 1
+        
+        # 如果是centroid算法，添加两个grid_mean维度的图
+        if config.FEATURE_ALGORITHM == 'centroid':
+            for dim in range(2):  # 绘制dim_0和dim_1
+                plt.subplot(n_rows, n_cols, plot_idx)
+                grid_col = f'grid_centroid{window_size}_dim_{dim}_mean2'
+                plt.plot(df.index, df[grid_col], label='positive', marker=markers[0], markersize=4)
+                plt.plot(df2.index, df2[grid_col], label='negative', marker=markers[1], markersize=4)
+                plt.legend()
+                plt.title(f'Grid Mean Dim {dim} (Window Size = {window_size})')
+                plt.xlabel('Index')
+                plt.ylabel('Grid Values')
+                plt.grid(True)
+                plot_idx += 1
     
     # 调整子图之间的间距
     plt.tight_layout()
@@ -91,7 +110,7 @@ def calculate_features_chunk(chunk, window_size):
     # 只在需要时计算grid特征
     if config.FEATURE_ALGORITHM == 'centroid':
         grid_means = []
-        grid_mean_col = f'grid_mean{window_size}'
+        grid_mean_col = f'grid_centroid{window_size}'
     
     chunk_data = chunk[value_columns].values
     
@@ -114,17 +133,15 @@ def calculate_features_chunk(chunk, window_size):
         
         # 只在需要时计算grid特征
         if config.FEATURE_ALGORITHM == 'centroid':
+            # 打印当前bin计数的大小
+            # print(f'当前bin计数大小: {len(bin_counts)}')
             # 获取top 10最密集的grid
             top_bins = sorted(bin_counts.items(), key=lambda x: x[1], reverse=True)[:10]
-            total_count = sum(count for _, count in top_bins)
             
-            if total_count > 0:
-                # 计算加权平均grid值
-                weighted_grid = np.zeros(len(value_columns))
-                for bin_idx, count in top_bins:
-                    grid_coord = np.array(bin_idx) / num_bins  # 转换回原始空间的grid坐标
-                    weight = count / total_count
-                    weighted_grid += grid_coord * weight
+            if len(top_bins) > 0:
+                # 计算简单平均grid值
+                grid_coords = np.array([np.array(bin_idx) / num_bins for bin_idx, _ in top_bins])
+                weighted_grid = np.mean(grid_coords, axis=0)
             else:
                 weighted_grid = np.zeros(len(value_columns))
             grid_means.append(weighted_grid)
@@ -139,6 +156,10 @@ def calculate_features_chunk(chunk, window_size):
         for j in range(len(value_columns)):
             col_name = f'{grid_mean_col}_dim_{j}'
             chunk_result[col_name] = [m[j] for m in grid_means]
+            mean1_col = f'{col_name}_mean1'
+            mean2_col = f'{col_name}_mean2'
+            chunk_result[mean1_col] = chunk_result[col_name].rolling(window=window_size).mean()
+            chunk_result[mean2_col] = chunk_result[mean1_col].rolling(window=window_size).mean()
     
     return chunk_result
 
@@ -175,9 +196,12 @@ def calculate_features_parallel(df, window_size, n_jobs=32):
     
     if config.FEATURE_ALGORITHM == 'centroid':
         grid_mean_cols = []
-        grid_mean_base = f'grid_mean{window_size}'
+        grid_mean_base = f'grid_centroid{window_size}'
         for dim in range(len([col for col in df.columns if col.startswith('value_')])):
-            grid_mean_cols.append(f'{grid_mean_base}_dim_{dim}')
+            base_col = f'{grid_mean_base}_dim_{dim}'
+            mean1_col = f'{base_col}_mean1'
+            mean2_col = f'{base_col}_mean2'
+            grid_mean_cols.extend([base_col, mean1_col, mean2_col])
         cols_to_update.extend(grid_mean_cols)
 
     # 初始化一个空的DataFrame来存储结果

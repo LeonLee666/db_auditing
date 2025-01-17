@@ -17,7 +17,7 @@ def get_trainer_config(use_cuda, is_test=False):
     base_config = {
         'logger': TensorBoardLogger(save_dir="metrics", name="audit"),
         'enable_progress_bar': True,
-        # 'callbacks': [LossBasedEarlyStopping()],  # 添加callback
+        'callbacks': [LossBasedEarlyStopping()],  # 添加callback
     }
     
     if use_cuda:
@@ -43,26 +43,31 @@ def main():
     parser.add_argument('--negative', type=str, required=True, help='negative log file path')
     parser.add_argument('--fe', action='store_true', help='is need re-calc features')
     parser.add_argument('--cuda', action='store_true', help='running device')
-    args = parser.parse_args()    
+    args = parser.parse_args()
     config.NEED_CALC_FEATURES = args.fe
     config.POSITIVE_FILE = args.positive
     config.NEGATIVE_FILE = args.negative
     if config.FEATURE_ALGORITHM == 'centroid':
-        config.INPUT_SIZE = len(config.WINDOW_SIZES) * (2 + 1)
+        config.INPUT_SIZE = len(config.WINDOW_SIZES) * 2
     else:
         config.INPUT_SIZE = len(config.WINDOW_SIZES)
     
-    # pl.seed_everything(22)    
+    pl.seed_everything(42)    
     model = MyModel(
         batch_size=config.TRAINING_BATCH_SIZE,
         learning_rate=config.LEARNING_RATE
     )    
     # Training
     trainer = pl.Trainer(**get_trainer_config(args.cuda))
-    trainer.fit(model)    
-    # Testing
-    tester = pl.Trainer(**get_trainer_config(args.cuda, is_test=True))
-    tester.test(model)
+    try:
+        trainer.fit(model)
+    except KeyboardInterrupt:
+        print("\n键盘中断,正在退出训练...")
+        print("继续执行测试阶段...")
+    finally:
+        # Testing
+        tester = pl.Trainer(**get_trainer_config(args.cuda, is_test=True))
+        tester.test(model)
 
 if __name__ == '__main__':
     main()

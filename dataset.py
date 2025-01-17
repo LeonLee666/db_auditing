@@ -22,12 +22,13 @@ def PrepareData():
     
     # 根据配置决定是否加载grid特征
     if config.FEATURE_ALGORITHM == 'centroid':
+        usecols = []
         grid_mean_cols = []
         for size in config.WINDOW_SIZES:
-            grid_mean_base = f'grid_mean{size}'
+            grid_mean_base = f'grid_centroid{size}'
             for dim in range(len([col for col in pd.read_csv(config.POSITIVE_FEATURES, nrows=1).columns 
                                 if col.startswith('value_')])):
-                grid_mean_cols.append(f'{grid_mean_base}_dim_{dim}')
+                grid_mean_cols.append(f'{grid_mean_base}_dim_{dim}_mean2')
         usecols.extend(grid_mean_cols)
     
     positive_df = pd.read_csv(config.POSITIVE_FEATURES, usecols=usecols).dropna(subset=usecols)
