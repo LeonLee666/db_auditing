@@ -12,14 +12,10 @@ feature_algorithm=${3:-$DEFAULT_FEATURE_ALGORITHM}
 # 创建配置文件
 cat > config.py << EOF
 FEATURE_ALGORITHM = '${feature_algorithm}'
-POSITIVE_FEATURES = 'positive.csv'
 POSITIVE_SIZE = 150000
-
-NEGATIVE_FEATURES = 'negative.csv'
 NEGATIVE_SIZE = 150000
 
-JOBS = 16
-NEED_CALC_FEATURES = False
+JOBS = 32
 # 单个时序样本的长度，也就是一个时序样本包含多少条sql
 SEQ_LENGTH = ${seq_length}
 

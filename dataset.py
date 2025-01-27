@@ -5,18 +5,17 @@ import config
 from feature_engineering import preprocess, plot_features
 
 def PrepareData():
-    if config.NEED_CALC_FEATURES == 1:
-        print('Processing positive samples...')
-        positive_df = preprocess(config.POSITIVE_FILE, config.POSITIVE_FEATURES)
-        print('Positive samples processing completed')
-        
-        print('Processing negative samples...')
-        negative_df = preprocess(config.NEGATIVE_FILE, config.NEGATIVE_FEATURES)
-        print('Negative samples processing completed')
-        
-        print('Starting to plot feature distributions...')
-        plot_features(positive_df, negative_df)
-        print('Feature engineering completed')
+    print('Processing positive samples...')
+    positive_df = preprocess(config.POSITIVE_FILE)
+    print('Positive samples processing completed')
+    
+    print('Processing negative samples...')
+    negative_df = preprocess(config.NEGATIVE_FILE)
+    print('Negative samples processing completed')
+    
+    print('Starting to plot feature distributions...')
+    plot_features(positive_df, negative_df)
+    print('Feature engineering completed')
 
     usecols = [f'mean{size}_2' for size in config.WINDOW_SIZES]
     
@@ -26,13 +25,14 @@ def PrepareData():
         grid_mean_cols = []
         for size in config.WINDOW_SIZES:
             grid_mean_base = f'grid_centroid{size}'
-            for dim in range(len([col for col in pd.read_csv(config.POSITIVE_FEATURES, nrows=1).columns 
+            for dim in range(len([col for col in positive_df.columns 
                                 if col.startswith('value_')])):
                 grid_mean_cols.append(f'{grid_mean_base}_dim_{dim}_mean2')
         usecols.extend(grid_mean_cols)
     
-    positive_df = pd.read_csv(config.POSITIVE_FEATURES, usecols=usecols).dropna(subset=usecols)
-    negative_df = pd.read_csv(config.NEGATIVE_FEATURES, usecols=usecols).dropna(subset=usecols)
+    # 直接使用已处理的DataFrame，并选择所需列
+    positive_df = positive_df[usecols].dropna(subset=usecols)
+    negative_df = negative_df[usecols].dropna(subset=usecols)
     data_list = []
     cnt = 0
     for i in range(0, len(positive_df) - config.SEQ_LENGTH + 1, 10):

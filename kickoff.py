@@ -41,10 +41,8 @@ def main():
     parser = argparse.ArgumentParser(description="auditlog ai agent.")
     parser.add_argument('--positive', type=str, required=True, help='positive log file path')
     parser.add_argument('--negative', type=str, required=True, help='negative log file path')
-    parser.add_argument('--fe', action='store_true', help='is need re-calc features')
     parser.add_argument('--cuda', action='store_true', help='running device')
     args = parser.parse_args()
-    config.NEED_CALC_FEATURES = args.fe
     config.POSITIVE_FILE = args.positive
     config.NEGATIVE_FILE = args.negative
     if config.FEATURE_ALGORITHM == 'centroid':

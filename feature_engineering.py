@@ -9,6 +9,7 @@ from joblib import Parallel, delayed
 from sklearn.preprocessing import MinMaxScaler
 import config
 from sql_extract import extract_sql_file
+import heapq
 
 def plot_features(df, df2):
     # 计算需要的子图行数和列数
@@ -133,10 +134,8 @@ def calculate_features_chunk(chunk, window_size):
         
         # 只在需要时计算grid特征
         if config.FEATURE_ALGORITHM == 'centroid':
-            # 打印当前bin计数的大小
-            # print(f'当前bin计数大小: {len(bin_counts)}')
-            # 获取top 10最密集的grid
-            top_bins = sorted(bin_counts.items(), key=lambda x: x[1], reverse=True)[:10]
+            # 使用heapq获取top 10最密集的grid
+            top_bins = heapq.nlargest(10, bin_counts.items(), key=lambda x: x[1])
             
             if len(top_bins) > 0:
                 # 计算简单平均grid值
@@ -259,7 +258,7 @@ def extract_and_parse_sql_file(infile):
         columns=[f'value_{i}' for i in range(max_length)]
     )
 
-def preprocess(infile, outfile):
+def preprocess(infile):
     # 使用新的合并函数
     values_df = extract_and_parse_sql_file(infile)
     # 数据预处理
@@ -276,5 +275,4 @@ def preprocess(infile, outfile):
         print(f'Time taken for window size {window_size}: {end_time - start_time:.2f} seconds')
     # 打印列名以进行调试
     print("Available columns:", values_df.columns.tolist())
-    values_df.to_csv(outfile, index=False)
     return values_df
