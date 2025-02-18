@@ -17,3 +17,4 @@ metrics/lstm/version_0/events.out.tfevents.1731058976.leonlee.39872.0
 metrics/lstm/version_0/hparams.yaml
 __pycache__/mylstm.cpython-312.pyc
 *.eps
+*.pdf

@@ -9,7 +9,7 @@ from mymodel import MyModel
 class LossBasedEarlyStopping(Callback):
     def on_train_batch_end(self, trainer, pl_module, outputs, batch, batch_idx):
         loss = outputs['loss']
-        if loss <= 0.1:
+        if loss <= 0.45:
             print(f"\nLoss {loss:.4f} is less than 0.1, early stopping")
             trainer.should_stop = True
 

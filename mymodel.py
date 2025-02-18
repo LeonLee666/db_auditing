@@ -5,17 +5,16 @@ import torch.nn.functional as F
 import torch.optim as optim
 from joblib.externals.loky import cpu_count
 from torch.utils.data import DataLoader
-from torchmetrics import Accuracy, F1Score
+from torchmetrics import Accuracy, Recall
 
 import config
 from dataset import PrepareData
 from torch.utils.data import Dataset
 
-
 criterion = nn.CrossEntropyLoss()
 dropout = nn.Dropout(config.DROPOUT)
 acc = Accuracy(task='binary')
-f1_score = F1Score(num_classes=config.OUTPUT_CLASSES, task='binary')
+recall = Recall(num_classes=config.OUTPUT_CLASSES, task='binary')
 
 # define dataset, the input args for dataset type is a list of (sample,label)
 class DataWrapper(Dataset):
@@ -77,26 +76,26 @@ class MyModel(pl.LightningModule):
         predictions = torch.argmax(outputs, dim=1)
         device = features.device
         acc_device = acc.to(device)
-        f1_score2_device = f1_score.to(device)
+        recall_device = recall.to(device)
         step_acc = acc_device(predictions, labels)
-        step_f1 = f1_score2_device(predictions, labels)
-        return loss, step_acc, step_f1
+        step_recall = recall_device(predictions, labels)
+        return loss, step_acc, step_recall
 
     def training_step(self, batch, batch_idx):
-        loss, step_acc, step_f1 = self.__common__calc__(batch, batch_idx)
+        loss, step_acc, step_recall = self.__common__calc__(batch, batch_idx)
         self.log("fit loss", loss, on_step=True, prog_bar=True, logger=True, sync_dist=True)
         self.log("fit accuracy", step_acc, on_step=True, prog_bar=True, logger=True, sync_dist=True)
-        self.log("fit f1 score", step_f1, on_step=True, prog_bar=True, logger=True, sync_dist=True)
+        self.log("fit recall", step_recall, on_step=True, prog_bar=True, logger=True, sync_dist=True)
         if loss < 0.002:
-            self.trainer.should_stop = True  # 手动停止训练
-        return {"loss": loss, "accuracy": step_acc, "f1": step_f1}
+            self.trainer.should_stop = True
+        return {"loss": loss, "accuracy": step_acc, "recall": step_recall}
 
     def test_step(self, batch, batch_idx):
-        loss, step_acc, step_f1 = self.__common__calc__(batch, batch_idx)
+        loss, step_acc, step_recall = self.__common__calc__(batch, batch_idx)
         self.log("test loss", loss, on_step=True, prog_bar=True, logger=True, sync_dist=True)
         self.log("test accuracy", step_acc, on_step=True, prog_bar=True, logger=True, sync_dist=True)
-        self.log("test f1 score", step_f1, on_step=True, prog_bar=True, logger=True, sync_dist=True)
-        return {"loss": loss, "accuracy": step_acc, "f1": step_f1}
+        self.log("test recall", step_recall, on_step=True, prog_bar=True, logger=True, sync_dist=True)
+        return {"loss": loss, "accuracy": step_acc, "recall": step_recall}
 
     def train_dataloader(self):
         return DataLoader(

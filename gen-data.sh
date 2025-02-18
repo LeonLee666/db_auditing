@@ -6,7 +6,7 @@ mysql-reboot() {
 
 rm ~/mysql/data/audit*
 
-client_nums=(10 50 100 500 1000)
+client_nums=(10 50 100 200 300 400 500 1000)
 
 # 循环处理每个 alpha 值
 for num in "${client_nums[@]}"; do
