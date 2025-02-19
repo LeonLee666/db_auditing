@@ -26,7 +26,7 @@ def plot_distribution(values_df, outfile, filter_w_id=None, y_limits=None, title
             w_id_desc = '(all values)'
             
         # 创建图表
-        fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(12, 8))
+        fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(6, 6))
         
         # 准备数据
         df = df.reset_index(drop=True)
@@ -42,7 +42,7 @@ def plot_distribution(values_df, outfile, filter_w_id=None, y_limits=None, title
         ax1.set_title(f'{title_prefix}Distribution of s_w_id {w_id_desc}', fontsize=14)
         ax1.set_xlabel('Row Number', fontsize=14)
         ax1.set_ylabel('s_w_id', fontsize=14)
-        ax1.tick_params(labelsize=14)
+        ax1.tick_params(labelsize=14, axis='x', rotation=15)
         ax1.grid(True)
         ax1.legend(fontsize=14)
         
@@ -52,7 +52,7 @@ def plot_distribution(values_df, outfile, filter_w_id=None, y_limits=None, title
         ax2.set_title(f'{title_prefix}Distribution of s_i_id {w_id_desc}', fontsize=14)
         ax2.set_xlabel('Row Number', fontsize=14)
         ax2.set_ylabel('s_i_id', fontsize=14)
-        ax2.tick_params(labelsize=14)
+        ax2.tick_params(labelsize=14, axis='x', rotation=15)
         ax2.grid(True)
         ax2.legend(fontsize=14)
         
@@ -81,7 +81,7 @@ def plot_2d_20points(infile, outfile='2d.pdf'):
     # 绘制放大的s_w_id=5分布图
     plot_distribution(values_df, 's_w_id_5_zoomed.pdf', 
                      filter_w_id=5,
-                     y_limits=[(4.9, 5.1), (59800, 60200)],
+                     y_limits=[(4.9, 5.1), (60560, 60620)],
                      title_prefix='Zoomed ')
     
     # 绘制所有数据的分布图
@@ -97,12 +97,12 @@ def plot_2d_20points(infile, outfile='2d.pdf'):
     end_idx = 1000100
     
     # 创建主图
-    fig, ax = plt.subplots(figsize=(6, 6))
+    fig, ax = plt.subplots(figsize=(5, 5))
     # 绘制主图内容
     ax.scatter(values_scaled['s_w_id'][start_idx:end_idx], values_scaled['s_i_id'][start_idx:end_idx], 
               c='black', marker='o', label=f'Points {start_idx}-{end_idx}')
     # 创建放大的图，调整大小并移到右上角
-    axins = inset_axes(ax, width=0.8, height=0.8,  # 减小子图大小
+    axins = inset_axes(ax, width=0.7, height=0.7,  # 减小子图大小
                       bbox_to_anchor=(0.95, 0.95),  # 修改为右上角位置
                       bbox_transform=ax.transAxes,
                       loc='upper right')  # 修改为右上角

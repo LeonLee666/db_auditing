@@ -33,6 +33,8 @@ DROPOUT = 0.2
 TRAINING_BATCH_SIZE = 32
 N_EPOCH = 5
 LEARNING_RATE = 1e-4
+
+VANILLA_MODE = False  # 默认为False，使用特征工程后的特征
 EOF
 
 echo "配置文件已生成: config.py" 

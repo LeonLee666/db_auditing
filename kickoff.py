@@ -1,6 +1,6 @@
 import argparse
 import pytorch_lightning as pl
-from pytorch_lightning.loggers import TensorBoardLogger
+from pytorch_lightning.loggers import CSVLogger
 from pytorch_lightning.callbacks import Callback
 import config
 from mymodel import MyModel
@@ -15,7 +15,7 @@ class LossBasedEarlyStopping(Callback):
 
 def get_trainer_config(use_cuda, is_test=False):
     base_config = {
-        'logger': TensorBoardLogger(save_dir="metrics", name="audit"),
+        'logger': CSVLogger(save_dir="metrics", name="audit"),
         'enable_progress_bar': True,
         'callbacks': [LossBasedEarlyStopping()],  # 添加callback
     }
@@ -42,15 +42,20 @@ def main():
     parser.add_argument('--positive', type=str, required=True, help='positive log file path')
     parser.add_argument('--negative', type=str, required=True, help='negative log file path')
     parser.add_argument('--cuda', action='store_true', help='running device')
+    parser.add_argument('--vanilla', action='store_true', help='使用原始特征进行训练')
     args = parser.parse_args()
+    
     config.POSITIVE_FILE = args.positive
     config.NEGATIVE_FILE = args.negative
-    if config.FEATURE_ALGORITHM == 'centroid':
+    config.VANILLA_MODE = args.vanilla  # 添加新的配置项
+    
+    if config.VANILLA_MODE:
+        config.INPUT_SIZE = 2  # value_0 和 value_1
+    elif config.FEATURE_ALGORITHM == 'centroid':
         config.INPUT_SIZE = len(config.WINDOW_SIZES) * 2
     else:
         config.INPUT_SIZE = len(config.WINDOW_SIZES)
     
-    pl.seed_everything(42)    
     model = MyModel(
         batch_size=config.TRAINING_BATCH_SIZE,
         learning_rate=config.LEARNING_RATE
