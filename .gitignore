@@ -1,5 +1,4 @@
 .idea
-*.csv
 /paperlist.py
 /kanyikan.py
 /paperlist.xlsx

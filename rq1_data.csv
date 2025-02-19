@@ -1,0 +1,21 @@
+Dataset,Metric,LSTM-Euler,LSTM-HASH-Grid,LSTM-Centroid
+TPC-C,Precision,63.33,66.93,79.4
+TPC-C,Recall,70.56,73.17,80.61
+TPC-C,F1-score,66.75,69.91,80
+TPC-C,FE Time,2777,2.07,13.7
+Voter,Precision,98.96,97.13,83.6
+Voter,Recall,98.86,97.13,81.54
+Voter,F1-score,98.91,97.13,82.57
+Voter,FE Time,2802,1.98,13.39
+YCSB,Precision,98.96,97.13,83.6
+YCSB,Recall,98.86,97.13,81.54
+YCSB,F1-score,98.91,97.13,82.57
+YCSB,FE Time,2802,1.98,13.39
+Twitter,Precision,98.96,97.13,83.6
+Twitter,Recall,98.86,97.13,81.54
+Twitter,F1-score,98.91,97.13,82.57
+Twitter,FE Time,2802,1.98,13.39 
+Wikipedia,Precision,98.96,97.13,83.6
+Wikipedia,Recall,98.86,97.13,81.54
+Wikipedia,F1-score,98.91,97.13,82.57
+Wikipedia,FE Time,2802,1.98,13.39 

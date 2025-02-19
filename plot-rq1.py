@@ -1,33 +1,34 @@
 import numpy as np
 import matplotlib.pyplot as plt
+import pandas as pd
+
+# 读取CSV文件
+df = pd.read_csv('rq1_data.csv')
 
 # 数据集和算法
-labels = ['TPC-C', 'Voter', 'YCSB', 'Sysbench']
+labels = ['TPC-C', 'Voter', 'YCSB', 'Twitter', 'Wikipedia']
 algorithms = ['LSTM-Euler', 'LSTM-HASH-Grid', 'LSTM-Centroid']
-
-# 示例数据，行表示不同的指标（accuracy, recall, F1），列表示不同的数据集
-# 注意：这里的数据是示例数据，您可以根据实际情况进行替换
-data = {
-    'Precision': np.array([[98.96, 97.13, 83.6], [98.96, 97.13, 83.6], [98.96, 97.13, 83.6], [98.96, 97.13, 83.6]]),
-    'Recall': np.array([[98.86, 97.13, 81.54], [98.86, 97.13, 81.54], [98.86, 97.13, 81.54], [98.86, 97.13, 81.54]]),
-    'F1-score': np.array([[98.91, 97.13, 82.57], [98.91, 97.13, 82.57], [98.91, 97.13, 82.57], [98.91, 97.13, 82.57]]),
-    'FE Time': np.array([[2802, 1.98, 13.39], [2802, 1.98, 13.39], [2802, 1.98, 13.39], [2802, 1.98, 13.39]])
-}
 
 # 设置柱状图的宽度
 bar_width = 0.2
 index = np.arange(len(labels))
 
-# 绘制三个独立的图
-metrics = list(data.keys())
-for i, metric in enumerate(metrics):
+# 获取所有唯一的指标
+metrics = df['Metric'].unique()
+
+# 绘制图表
+for metric in metrics:
     # 创建新的图形
     plt.figure(figsize=(6, 4))
     
-    # 绘制柱状图，设置透明度为1（完全不透明）
-    for j in range(len(algorithms)):
-        plt.bar(index + j * bar_width, data[metric][:, j], bar_width, 
-                label=algorithms[j], alpha=1.0)
+    # 获取当前指标的数据
+    metric_data = df[df['Metric'] == metric]
+    
+    # 绘制柱状图
+    for j, algorithm in enumerate(algorithms):
+        values = metric_data[algorithm].values
+        plt.bar(index + j * bar_width, values, bar_width, 
+                label=algorithm, alpha=1.0)
     
     # 为FE Time设置对数坐标轴
     if metric == 'FE Time':

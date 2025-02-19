@@ -6,7 +6,7 @@
 
 ```
 # 下面的命令会产生100个线程，每个线程每秒进行50次的查询。其中有99个线程正常查询，一个线程是bot线程
-python3 bot.py -c 99 -b 1 -d uniform -r 50
+python3 tpcc.py -c 99 -b 1 -d uniform -r 50
 ```
 
 ## 算法评估
